@@ -1,36 +1,89 @@
-const hre = require("hardhat");
+const hre  = require("hardhat");
+const fs   = require("fs");
+const path = require("path");
 
 async function main() {
-  console.log("Starting ZKGate Deployment...");
+  const [deployer] = await hre.ethers.getSigners();
+  const network    = hre.network.name;
+  const chainId    = (await hre.ethers.provider.getNetwork()).chainId;
 
-  // 1. Deploy ZKVerifier
-  const ZKVerifier = await hre.ethers.getContractFactory("ZKVerifier");
-  const verifier = await ZKVerifier.deploy();
-  await verifier.waitForDeployment();
-  console.log("ZKVerifier deployed to:", await verifier.getAddress());
+  console.log("=================================================");
+  console.log(" ZKGate Full Deployment");
+  console.log("=================================================");
+  console.log(` Network:  ${network} (chainId: ${chainId})`);
+  console.log(` Deployer: ${deployer.address}`);
+  console.log(` Balance:  ${hre.ethers.formatEther(await hre.ethers.provider.getBalance(deployer.address))} HSK`);
+  console.log("=================================================\n");
 
-  // 2. Deploy ZKCredentialRegistry
-  const ZKCredentialRegistry = await hre.ethers.getContractFactory("ZKCredentialRegistry");
-  const registry = await ZKCredentialRegistry.deploy();
-  await registry.waitForDeployment();
-  console.log("ZKCredentialRegistry deployed to:", await registry.getAddress());
+  const deployed = {};
+  const txHashes = {};
 
-  // 3. Deploy ZKGate
-  const ZKGate = await hre.ethers.getContractFactory("ZKGate");
-  const zkGate = await ZKGate.deploy(await verifier.getAddress(), await registry.getAddress());
-  await zkGate.waitForDeployment();
-  console.log("ZKGate deployed to:", await zkGate.getAddress());
+  async function deploy(name, ...args) {
+    console.log(`Deploying ${name}...`);
+    const Factory = await hre.ethers.getContractFactory(name);
+    const contract = await Factory.deploy(...args);
+    await contract.waitForDeployment();
+    const addr = await contract.getAddress();
+    const tx   = contract.deploymentTransaction()?.hash;
+    deployed[name] = addr;
+    txHashes[name] = tx;
+    console.log(`  ✓ ${name.padEnd(32)} ${addr}`);
+    console.log(`    tx: ${tx}\n`);
+    return contract;
+  }
 
-  // 4. Deploy ZKGateConsumer (Example DeFi Integration)
-  const ZKGateConsumer = await hre.ethers.getContractFactory("ZKGateConsumer");
-  const consumer = await ZKGateConsumer.deploy(await zkGate.getAddress());
-  await consumer.waitForDeployment();
-  console.log("ZKGateConsumer (DeFi Demo) deployed to:", await consumer.getAddress());
+  // Deploy in order
+  await deploy("AgeCheckVerifier");
+  await deploy("CredentialCheckVerifier");
+  await deploy("SelectiveDisclosureVerifier");
+  const registry = await deploy("ZKCredentialRegistry");
 
-  console.log("Deployment completed successfully!");
+  const zkGate = await deploy(
+    "ZKGate",
+    deployed.AgeCheckVerifier,
+    deployed.CredentialCheckVerifier,
+    deployed.SelectiveDisclosureVerifier,
+    deployed.ZKCredentialRegistry
+  );
+
+  await deploy("ZKGateConsumer", deployed.ZKGate);
+  await deploy("ZKAirdrop", deployed.ZKGate, 1000);
+
+  // Authorize ZKGate as issuer
+  console.log("Authorizing ZKGate as issuer in registry...");
+  const authTx = await registry.addIssuer(deployed.ZKGate);
+  await authTx.wait();
+  console.log(`  ✓ ZKGate authorized (tx: ${authTx.hash})\n`);
+
+  // Write deployments.json
+  const deploymentsPath = path.join(__dirname, "../app/app/lib/deployments.json");
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(deploymentsPath, "utf8")); } catch {}
+
+  const key = network === "hashkeyTestnet" ? "hashkeyTestnet" : "hashkeyMainnet";
+  data[key] = {
+    chainId: Number(chainId),
+    rpcUrl: network === "hashkeyTestnet"
+      ? "https://hashkeychain-testnet.alt.technology"
+      : "https://hashkeychain-mainnet.alt.technology",
+    explorer: network === "hashkeyTestnet"
+      ? "https://hashkey-testnet-explorer.alt.technology"
+      : "https://hashkeychain-mainnet-explorer.alt.technology",
+    contracts: deployed,
+    deployedAt: new Date().toISOString(),
+    deployTxHashes: txHashes,
+  };
+
+  fs.writeFileSync(deploymentsPath, JSON.stringify(data, null, 2));
+  console.log(`✓ Written to app/app/lib/deployments.json\n`);
+
+  const explorerBase = data[key].explorer;
+  console.log("=================================================");
+  console.log(" Explorer links:");
+  for (const [name, addr] of Object.entries(deployed)) {
+    console.log(`   ${explorerBase}/address/${addr}  (${name})`);
+  }
+  console.log("=================================================\n");
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main().catch((err) => { console.error(err); process.exitCode = 1; });

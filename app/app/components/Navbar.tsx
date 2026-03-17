@@ -51,6 +51,7 @@ export const Navbar = () => {
     { name: 'Issue', href: '/issue' },
     { name: 'Prove', href: '/prove' },
     { name: 'DeFi Demo', href: '/defi-demo' },
+    { name: 'Airdrop', href: '/airdrop' },
     { name: 'Explorer', href: '/explorer' },
     { name: 'Docs', href: '/docs' },
   ];

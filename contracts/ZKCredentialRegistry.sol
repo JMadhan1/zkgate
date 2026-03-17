@@ -5,15 +5,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title ZKCredentialRegistry
- * @dev Stores Merkle roots of issued credentials and manages authorized issuers
+ * @dev Stores Merkle roots of issued credentials + privacy-preserving revocation.
+ *      Revocation is anonymous: issuer can revoke by credentialHash without
+ *      knowing which user it belongs to.
  */
 contract ZKCredentialRegistry is Ownable {
     mapping(address => bool) public isIssuer;
     mapping(bytes32 => bool) public roots;
+    mapping(bytes32 => bool) public revokedCredentials;
     bytes32 public latestRoot;
+    uint256 public totalIssued;
+    uint256 public totalRevoked;
 
-    event CredentialIssued(bytes32 indexed root);
-    event RootUpdated(bytes32 indexed oldRoot, bytes32 indexed newRoot);
+    event RootUpdated(bytes32 indexed oldRoot, bytes32 indexed newRoot, address indexed issuer);
+    event CredentialIssued(bytes32 indexed root, uint256 totalIssued);
+    event CredentialRevoked(bytes32 indexed credentialHash, address indexed revokedBy);
     event IssuerAdded(address indexed issuer);
     event IssuerRemoved(address indexed issuer);
 
@@ -23,44 +29,52 @@ contract ZKCredentialRegistry is Ownable {
     }
 
     modifier onlyIssuer() {
-        require(isIssuer[msg.sender], "ZKCredentialRegistry: Caller is not an authorized issuer");
+        require(isIssuer[msg.sender], "ZKCredentialRegistry: Not an authorized issuer");
         _;
     }
 
     /**
-     * @dev Update the Merkle root. Only callable by authorized issuers.
-     * @param newRoot The new Merkle root to be added.
+     * @notice Update Merkle root after adding a credential leaf.
      */
     function updateRoot(bytes32 newRoot) external onlyIssuer {
-        roots[newRoot] = true;
         bytes32 oldRoot = latestRoot;
-        latestRoot = newRoot;
-        emit RootUpdated(oldRoot, newRoot);
-        emit CredentialIssued(newRoot);
+        roots[newRoot]  = true;
+        latestRoot      = newRoot;
+        totalIssued++;
+        emit RootUpdated(oldRoot, newRoot, msg.sender);
+        emit CredentialIssued(newRoot, totalIssued);
     }
 
     /**
-     * @dev Check if a given root is valid (exists in the registry).
-     * @param root The root to check.
-     * @return bool True if the root is valid.
+     * @notice Revoke a credential by hash — WITHOUT knowing which user it is.
+     * @dev Privacy-preserving revocation: issuer only has the leaf hash,
+     *      not the user's identity. User's privacy is preserved even after revocation.
+     * @param credentialHash Poseidon(userCommitment, credType, issuanceDate, expiryDate, issuerPubkey)
      */
+    function revokeCredential(bytes32 credentialHash) external onlyIssuer {
+        require(!revokedCredentials[credentialHash], "ZKCredentialRegistry: Already revoked");
+        revokedCredentials[credentialHash] = true;
+        totalRevoked++;
+        emit CredentialRevoked(credentialHash, msg.sender);
+    }
+
+    function isRevoked(bytes32 credentialHash) external view returns (bool) {
+        return revokedCredentials[credentialHash];
+    }
+
     function isValidRoot(bytes32 root) external view returns (bool) {
         return roots[root];
     }
 
-    /**
-     * @dev Add a new authorized issuer. Only callable by the owner.
-     * @param issuer The address of the new issuer.
-     */
+    function getStats() external view returns (uint256 issued, uint256 revoked, bytes32 currentRoot) {
+        return (totalIssued, totalRevoked, latestRoot);
+    }
+
     function addIssuer(address issuer) external onlyOwner {
         isIssuer[issuer] = true;
         emit IssuerAdded(issuer);
     }
 
-    /**
-     * @dev Remove an authorized issuer. Only callable by the owner.
-     * @param issuer The address of the issuer to remove.
-     */
     function removeIssuer(address issuer) external onlyOwner {
         isIssuer[issuer] = false;
         emit IssuerRemoved(issuer);

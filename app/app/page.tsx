@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, Lock, Zap, Shield, Github } from 'lucide-react';
 import { TypingText } from './components/TypingText';
+import { ImpossibleTriangle } from './components/ImpossibleTriangle';
 
 /* ─── Animated counter ─────────────────────────────────────────── */
 const Counter = ({ target, suffix = '' }: { target: number | string; suffix?: string }) => {
@@ -646,6 +647,11 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ── IMPOSSIBLE TRIANGLE ─────────────────────────── */}
+      <section style={{ position: 'relative', zIndex: 1 }}>
+        <ImpossibleTriangle />
       </section>
 
       {/* ── CTA SECTION ─────────────────────────────────── */}

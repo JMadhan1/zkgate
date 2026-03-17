@@ -1,0 +1,34 @@
+{
+  "hashkeyTestnet": {
+    "chainId": 133,
+    "rpcUrl": "https://hashkeychain-testnet.alt.technology",
+    "explorer": "https://hashkey-testnet-explorer.alt.technology",
+    "contracts": {
+      "AgeCheckVerifier": "",
+      "CredentialCheckVerifier": "",
+      "SelectiveDisclosureVerifier": "",
+      "ZKCredentialRegistry": "",
+      "ZKGate": "",
+      "ZKGateConsumer": "",
+      "ZKAirdrop": ""
+    },
+    "deployedAt": null,
+    "deployTxHashes": {}
+  },
+  "hashkeyMainnet": {
+    "chainId": 177,
+    "rpcUrl": "https://hashkeychain-mainnet.alt.technology",
+    "explorer": "https://hashkeychain-mainnet-explorer.alt.technology",
+    "contracts": {
+      "AgeCheckVerifier": "",
+      "CredentialCheckVerifier": "",
+      "SelectiveDisclosureVerifier": "",
+      "ZKCredentialRegistry": "",
+      "ZKGate": "",
+      "ZKGateConsumer": "",
+      "ZKAirdrop": ""
+    },
+    "deployedAt": null,
+    "deployTxHashes": {}
+  }
+}

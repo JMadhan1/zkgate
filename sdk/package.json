@@ -1,0 +1,19 @@
+{
+  "name": "@zkgate/sdk",
+  "version": "0.1.0",
+  "description": "One-line ZK identity verification for DeFi on HashKey Chain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["zk", "zkp", "identity", "defi", "hashkey", "privacy", "groth16"],
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
