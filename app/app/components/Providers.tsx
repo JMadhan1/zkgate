@@ -1,19 +1,8 @@
 'use client';
 
 import React from 'react';
-import {
-  RainbowKitProvider,
-  darkTheme,
-  connectorsForWallets,
-} from '@rainbow-me/rainbowkit';
-import {
-  metaMaskWallet,
-  injectedWallet,
-  walletConnectWallet,
-  coinbaseWallet,
-  rainbowWallet,
-} from '@rainbow-me/rainbowkit/wallets';
-import { WagmiProvider, createConfig, http } from 'wagmi';
+import { getDefaultConfig, RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
+import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@rainbow-me/rainbowkit/styles.css';
 
@@ -45,63 +34,33 @@ const hashkeyMainnet = {
   },
 } as const;
 
-// ── WalletConnect project ID ───────────────────────────────────────────────
-// Get a free project ID at: https://cloud.walletconnect.com
-// Then add to app/.env.local:  NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_id_here
-const PROJECT_ID = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'demo_zkgate_hackathon';
+// ── Wagmi + RainbowKit config ──────────────────────────────────────────────
+// WalletConnect projectId: create a free one at https://cloud.walletconnect.com
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? 'YOUR_WALLETCONNECT_PROJECT_ID';
 
-// ── Wallet connectors ──────────────────────────────────────────────────────
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: 'Recommended',
-      wallets: [metaMaskWallet, injectedWallet, coinbaseWallet],
-    },
-    {
-      groupName: 'More',
-      wallets: [walletConnectWallet, rainbowWallet],
-    },
-  ],
-  {
-    appName:   'ZKGate',
-    projectId: PROJECT_ID,
-  }
-);
-
-// ── Wagmi config ───────────────────────────────────────────────────────────
-const wagmiConfig = createConfig({
-  chains: [hashkeyTestnet, hashkeyMainnet],
-  connectors,
-  transports: {
-    [hashkeyTestnet.id]: http('https://hashkeychain-testnet.alt.technology'),
-    [hashkeyMainnet.id]: http('https://hashkeychain-mainnet.alt.technology'),
-  },
-  ssr: true,
+const wagmiConfig = getDefaultConfig({
+  appName: 'ZKGate',
+  projectId,
+  chains: [hashkeyTestnet, hashkeyMainnet] as any,
+  ssr: false, // SSR is handled by Web3Providers (next/dynamic ssr:false)
 });
 
 const queryClient = new QueryClient();
 
 // ── Provider ───────────────────────────────────────────────────────────────
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => { setMounted(true); }, []);
-
-  // Avoid hydration mismatch — don't render wallet UI on server
-  if (!mounted) return <>{children}</>;
-
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={darkTheme({
-            accentColor:          '#00f0ff',
+            accentColor:           '#00f0ff',
             accentColorForeground: '#050510',
             borderRadius:          'large',
             fontStack:             'system',
             overlayBlur:           'small',
           })}
-          initialChain={hashkeyTestnet}
+          initialChain={hashkeyTestnet as any}
           showRecentTransactions={true}
         >
           {children}

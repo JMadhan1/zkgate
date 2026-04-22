@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/app/components/Providers";
+import { Web3Providers } from "@/app/components/Web3Providers";
 import { MeshBackground } from "@/app/components/MeshBackground";
 import { Navbar } from "@/app/components/Navbar";
+import { AIExplainer } from "@/app/components/AIExplainer";
 
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -22,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${spaceGrotesk.variable} antialiased font-inter`} style={{ background: '#050510' }}>
-        <Providers>
+        <Web3Providers>
           {/* Gradient Orbs */}
           <div className="bg-orb bg-orb-1" />
           <div className="bg-orb bg-orb-2" />
@@ -42,7 +43,10 @@ export default function RootLayout({
           <div style={{ position: 'relative', zIndex: 1 }}>
             {children}
           </div>
-        </Providers>
+
+          {/* AI Assistant — floats on all pages */}
+          <AIExplainer />
+        </Web3Providers>
       </body>
     </html>
   );

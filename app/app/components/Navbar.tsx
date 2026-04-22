@@ -30,6 +30,9 @@ export const Navbar = () => {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -50,9 +53,9 @@ export const Navbar = () => {
   const navLinks = [
     { name: 'Issue', href: '/issue' },
     { name: 'Prove', href: '/prove' },
+    { name: 'Dashboard', href: '/dashboard' },
     { name: 'DeFi Demo', href: '/defi-demo' },
     { name: 'Airdrop', href: '/airdrop' },
-    { name: 'Explorer', href: '/explorer' },
     { name: 'Docs', href: '/docs' },
   ];
 
@@ -151,11 +154,13 @@ export const Navbar = () => {
 
           {/* Right: Connect Wallet + Mobile Toggle */}
           <div className="flex items-center gap-3">
-            <div className="gradient-border-btn hidden md:block" style={{ padding: 0 }}>
-              <div className="connect-button-wrapper" style={{ padding: '0' }}>
-                <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+            {mounted && (
+              <div className="gradient-border-btn hidden md:block" style={{ padding: 0 }}>
+                <div className="connect-button-wrapper" style={{ padding: '0' }}>
+                  <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Hamburger */}
             <button
@@ -224,15 +229,17 @@ export const Navbar = () => {
               })}
             </nav>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: navLinks.length * 0.07 + 0.1 }}
-              className="connect-button-wrapper"
-              style={{ marginTop: '2rem' }}
-            >
-              <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
-            </motion.div>
+            {mounted && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: navLinks.length * 0.07 + 0.1 }}
+                className="connect-button-wrapper"
+                style={{ marginTop: '2rem' }}
+              >
+                <ConnectButton showBalance={false} chainStatus="icon" accountStatus="address" />
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

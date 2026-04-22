@@ -7,6 +7,7 @@ import "./AgeCheckVerifier.sol";
 import "./CredentialCheckVerifier.sol";
 import "./SelectiveDisclosureVerifier.sol";
 import "./ZKCredentialRegistry.sol";
+import "./ZKBadge.sol";
 
 /**
  * @title ZKGate
@@ -23,6 +24,7 @@ contract ZKGate is IZKGate, Ownable {
     CredentialCheckVerifier     public credentialVerifier;
     SelectiveDisclosureVerifier public selectiveVerifier;
     ZKCredentialRegistry        public registry;
+    ZKBadge                     public zkBadge;
 
     mapping(address => mapping(CredentialType => bool))    private _userCredentials;
     mapping(address => mapping(CredentialType => uint256)) private _userExpiries;
@@ -181,10 +183,11 @@ contract ZKGate is IZKGate, Ownable {
         emit AccessRevoked(user, ct);
     }
 
-    function setAgeVerifier(address v) external onlyOwner       { ageVerifier        = AgeCheckVerifier(v); }
-    function setCredentialVerifier(address v) external onlyOwner { credentialVerifier = CredentialCheckVerifier(v); }
-    function setSelectiveVerifier(address v) external onlyOwner  { selectiveVerifier  = SelectiveDisclosureVerifier(v); }
-    function setRegistry(address r) external onlyOwner           { registry           = ZKCredentialRegistry(r); }
+    function setAgeVerifier(address v) external onlyOwner        { ageVerifier        = AgeCheckVerifier(v); }
+    function setCredentialVerifier(address v) external onlyOwner  { credentialVerifier = CredentialCheckVerifier(v); }
+    function setSelectiveVerifier(address v) external onlyOwner   { selectiveVerifier  = SelectiveDisclosureVerifier(v); }
+    function setRegistry(address r) external onlyOwner            { registry           = ZKCredentialRegistry(r); }
+    function setBadgeContract(address b) external onlyOwner       { zkBadge            = ZKBadge(b); }
 
     // ── Internal ───────────────────────────────────────────────────────────
     function _requireUnusedNullifier(bytes32 nullifier) internal view {
@@ -201,5 +204,10 @@ contract ZKGate is IZKGate, Ownable {
         _userCredentials[user][ct] = true;
         _userExpiries[user][ct]    = expiry;
         emit AccessGranted(user, ct, expiry);
+
+        // Mint soulbound badge if ZKBadge contract is configured
+        if (address(zkBadge) != address(0)) {
+            try zkBadge.mintBadge(user, ct, expiry) {} catch {}
+        }
     }
 }

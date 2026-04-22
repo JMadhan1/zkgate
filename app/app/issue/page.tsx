@@ -434,8 +434,9 @@ const CredentialCard = ({
 
 /* ─── Page ──────────────────────────────────────────────────────── */
 const COUNTRIES = [
-  'United States', 'United Kingdom', 'Singapore', 'Hong Kong',
+  'India', 'United States', 'United Kingdom', 'Singapore', 'Hong Kong',
   'Germany', 'France', 'Japan', 'Australia', 'Canada', 'Switzerland',
+  'UAE', 'South Korea', 'Brazil', 'Netherlands',
 ];
 
 export default function IssuePage() {
@@ -448,7 +449,7 @@ export default function IssuePage() {
   const [formData, setFormData] = useState({
     name: '',
     dob: '',
-    country: 'Singapore',
+    country: 'India',
     investorStatus: 'retail',
     idType: 'passport',
   });
@@ -760,7 +761,7 @@ export default function IssuePage() {
                           setSubmitted(false);
                           setIsFlipped(false);
                           setCredential(null);
-                          setFormData({ name: '', dob: '', country: 'Singapore', investorStatus: 'retail', idType: 'passport' });
+                          setFormData({ name: '', dob: '', country: 'India', investorStatus: 'retail', idType: 'passport' });
                         }}
                         className="btn-secondary"
                         style={{ padding: '12px 16px' }}

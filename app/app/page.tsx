@@ -3,9 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
-import { ArrowRight, Lock, Zap, Shield, Github } from 'lucide-react';
+import { ArrowRight, Lock, Zap, Shield, Github, BarChart2 } from 'lucide-react';
 import { TypingText } from './components/TypingText';
 import { ImpossibleTriangle } from './components/ImpossibleTriangle';
+import { ProofSelector } from './components/ProofSelector';
+import { ZKBadgeDisplay } from './components/ZKBadge';
+import { DeFiDemo } from './components/DeFiDemo';
 
 /* ─── Animated counter ─────────────────────────────────────────── */
 const Counter = ({ target, suffix = '' }: { target: number | string; suffix?: string }) => {
@@ -445,6 +448,93 @@ export default function LandingPage() {
           >
             <ShieldVisual />
           </motion.div>
+        </div>
+      </section>
+
+      {/* ── PROOF SELECTOR ──────────────────────────────── */}
+      <section style={{ padding: '80px 24px 60px', position: 'relative', zIndex: 1 }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: '1rem',
+              padding: '6px 16px', borderRadius: 100,
+              background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.2)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00f0ff', boxShadow: '0 0 8px #00f0ff' }} />
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '0.18em', fontWeight: 700 }}>
+                Step 01 — Choose Credential
+              </span>
+            </div>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: 'white', letterSpacing: '-0.04em', marginBottom: '0.75rem' }}>
+              Verify Your Identity
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
+              Choose what to prove. Your private data never leaves your device — only a cryptographic proof goes on-chain.
+            </p>
+          </motion.div>
+          <ProofSelector />
+        </div>
+      </section>
+
+      {/* ── ZK BADGE ────────────────────────────────────── */}
+      <section style={{ padding: '60px 24px 80px', position: 'relative', zIndex: 1,
+        background: 'linear-gradient(180deg, transparent, rgba(0,240,255,0.015), transparent)' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: '1rem',
+              padding: '6px 16px', borderRadius: 100,
+              background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#8b5cf6', boxShadow: '0 0 8px #8b5cf6' }} />
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#8b5cf6', textTransform: 'uppercase', letterSpacing: '0.18em', fontWeight: 700 }}>
+                Step 02 — Identity Badge
+              </span>
+            </div>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: 'white', letterSpacing: '-0.04em', marginBottom: '0.75rem' }}>
+              Soulbound Credentials
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
+              Every verified proof mints a non-transferable on-chain badge — your portable identity layer.
+            </p>
+          </motion.div>
+          <ZKBadgeDisplay />
+        </div>
+      </section>
+
+      {/* ── DEFI DEMO ────────────────────────────────────── */}
+      <section style={{ padding: '60px 24px 100px', position: 'relative', zIndex: 1,
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        background: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+            style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: '1rem',
+              padding: '6px 16px', borderRadius: 100,
+              background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.18em', fontWeight: 700 }}>
+                Step 03 — Access DeFi
+              </span>
+            </div>
+            <h2 style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: 'white', letterSpacing: '-0.04em', marginBottom: '0.75rem' }}>
+              See ZKGate in Action
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '1rem', maxWidth: 480, margin: '0 auto', lineHeight: 1.7 }}>
+              A live lending pool that gates access with ZKGate. KYC-verified users get full access — everyone else sees a wall.
+            </p>
+          </motion.div>
+          <div style={{ maxWidth: 520, margin: '0 auto' }}>
+            <DeFiDemo />
+          </div>
+          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+            <Link href="/defi-demo">
+              <button className="btn-secondary" style={{ fontSize: 13, padding: '10px 28px' }}>
+                <BarChart2 size={14} />
+                Full DeFi Demo
+                <ArrowRight size={13} />
+              </button>
+            </Link>
+          </div>
         </div>
       </section>
 
