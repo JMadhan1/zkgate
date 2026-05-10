@@ -805,7 +805,7 @@ export default function IssuePage() {
               {[
                 { label: 'Protocol', val: 'ZK-SNARK / Groth16' },
                 { label: 'Curve', val: 'BN254' },
-                { label: 'Chain', val: 'HashKey Testnet (133)' },
+                { label: 'Chain', val: 'HashKey Chain (177)' },
                 { label: 'Validity', val: '365 days' },
               ].map(({ label, val }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between' }}>

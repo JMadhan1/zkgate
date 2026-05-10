@@ -312,7 +312,7 @@ export function ProofSelector() {
                         fontSize: 14, fontFamily: "'JetBrains Mono', monospace",
                         color: selectedCred?.color ?? '#00f0ff', fontWeight: 700, marginBottom: 6,
                       }}>
-                        {step !== 'idle' && STEP_META[step as keyof typeof STEP_META]?.icon} {step !== 'idle' && STEP_META[step as keyof typeof STEP_META]?.label}
+                        {(step in STEP_META) && STEP_META[step as keyof typeof STEP_META]?.icon} {(step in STEP_META) && STEP_META[step as keyof typeof STEP_META]?.label}
                       </div>
                       <div style={{ fontSize: 11, color: '#475569', fontFamily: "'Inter', sans-serif" }}>
                         Private data never leaves your device

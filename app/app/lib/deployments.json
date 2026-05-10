@@ -17,8 +17,8 @@
   },
   "hashkeyMainnet": {
     "chainId": 177,
-    "rpcUrl": "https://hashkeychain-mainnet.alt.technology",
-    "explorer": "https://hashkeychain-mainnet-explorer.alt.technology",
+    "rpcUrl": "https://mainnet.hsk.xyz",
+    "explorer": "https://explorer.hsk.xyz",
     "contracts": {
       "AgeCheckVerifier": "",
       "CredentialCheckVerifier": "",

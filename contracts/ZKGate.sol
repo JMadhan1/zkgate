@@ -32,10 +32,7 @@ contract ZKGate is IZKGate, Ownable {
 
     uint256 public constant DEFAULT_EXPIRY = 365 days;
 
-    event VerificationCompleted(address indexed user, CredentialType credType, bytes32 nullifier);
     event SelectiveProofVerified(address indexed user, uint256 disclosureBitmask, bytes32 nullifier);
-    event AccessGranted(address indexed user, CredentialType credType, uint256 expiry);
-    event AccessRevoked(address indexed user, CredentialType credType);
     event NullifierUsed(bytes32 indexed nullifier, address indexed user);
 
     constructor(

@@ -26,11 +26,11 @@ const hashkeyMainnet = {
   name: 'HashKey Chain',
   nativeCurrency: { name: 'HashKey Token', symbol: 'HSK', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://hashkeychain-mainnet.alt.technology'] },
-    public:  { http: ['https://hashkeychain-mainnet.alt.technology'] },
+    default: { http: ['https://mainnet.hsk.xyz'] },
+    public:  { http: ['https://mainnet.hsk.xyz'] },
   },
   blockExplorers: {
-    default: { name: 'HashKey Explorer', url: 'https://hashkeychain-mainnet-explorer.alt.technology' },
+    default: { name: 'HashKey Explorer', url: 'https://explorer.hsk.xyz' },
   },
 } as const;
 
@@ -60,7 +60,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             fontStack:             'system',
             overlayBlur:           'small',
           })}
-          initialChain={hashkeyTestnet as any}
+          initialChain={hashkeyMainnet as any}
           showRecentTransactions={true}
         >
           {children}

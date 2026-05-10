@@ -11,7 +11,6 @@ import "./interfaces/IZKGate.sol";
  *      Non-transferable — represents a user's on-chain identity credential.
  */
 contract ZKBadge is ERC721, Ownable {
-    using IZKGate for IZKGate.CredentialType;
 
     struct BadgeData {
         IZKGate.CredentialType credType;
@@ -100,7 +99,7 @@ contract ZKBadge is ERC721, Ownable {
     ) internal override returns (address) {
         address from = _ownerOf(tokenId);
         // Allow minting (from == address(0)) and burning (to == address(0)), block transfers
-        require(from == address(0) || to == address(0), "ZKBadge: Soulbound — non-transferable");
+        require(from == address(0) || to == address(0), "ZKBadge: Soulbound - non-transferable");
         return super._update(to, tokenId, auth);
     }
 
@@ -111,7 +110,7 @@ contract ZKBadge is ERC721, Ownable {
         bool valid = b.validUntil > block.timestamp;
         // Minimal on-chain URI — integrators can override with a metadata server
         return string(abi.encodePacked(
-            'data:application/json;charset=utf-8,{"name":"ZKGate Badge — ', credName,
+            'data:application/json;charset=utf-8,{"name":"ZKGate Badge - ', credName,
             '","description":"Soulbound identity badge issued by ZKGate protocol.","attributes":[',
             '{"trait_type":"Credential","value":"', credName, '"},',
             '{"trait_type":"Status","value":"', valid ? "Valid" : "Expired", '"},',

@@ -256,7 +256,6 @@ export function DeFiDemo() {
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
               fontFamily: "'Space Grotesk', sans-serif",
               boxShadow: isVerified ? '0 4px 20px rgba(0,240,255,0.25)' : 'none',
-              border: isVerified ? 'none' : '1px solid rgba(255,255,255,0.05)',
             } as React.CSSProperties}
           >
             <Wallet size={14} /> Deposit

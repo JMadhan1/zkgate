@@ -23,7 +23,21 @@ interface IZKGate {
         uint256[] calldata publicInputs
     ) external returns (bool);
 
+    function verifyAge(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[4] calldata _pubSignals
+    ) external returns (bool);
+
+    function verifyCredential(
+        uint[2] calldata _pA,
+        uint[2][2] calldata _pB,
+        uint[2] calldata _pC,
+        uint[4] calldata _pubSignals
+    ) external returns (bool);
+
     function hasAccess(address user, CredentialType credentialType) external view returns (bool);
-    
+
     function getCredentialExpiry(address user, CredentialType credentialType) external view returns (uint256);
 }

@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Check, ExternalLink, Gift, Shield, Zap, AlertCircle, Users } from 'lucide-react';
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
 import { generateAgeProof, formatProofForContract, type ProofResult } from '../lib/zkproof';
+import { getDeployment, getExplorerUrl, ZKAIRDROP_ABI } from '../lib/contracts';
 
-/* ─── Mock stats (replace with on-chain data after deployment) ─── */
-const TOTAL_SUPPLY  = 1000;
 const CLAIM_AMOUNT  = 1000;
 
 const RECENT_CLAIMS = [
@@ -49,13 +49,62 @@ const HOW_IT_WORKS = [
 ];
 
 export default function AirdropPage() {
-  const [claimed, setClaimed]       = useState(153); // mock claimed count
+  const { address } = useAccount();
+  const chainId = useChainId();
+  const deployment = getDeployment(chainId);
+  const airdropAddress = deployment?.contracts?.ZKAirdrop as `0x${string}` | undefined;
+  const explorerUrl = getExplorerUrl(chainId);
+
+  const { writeContract, data: writeTxHash, isPending: isWritePending, error: writeError } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: writeTxHash });
+
+  const { data: totalClaimsData } = useReadContract({
+    address: airdropAddress,
+    abi: ZKAIRDROP_ABI,
+    functionName: 'totalClaims',
+    query: { enabled: !!airdropAddress },
+  });
+  const { data: maxClaimsData } = useReadContract({
+    address: airdropAddress,
+    abi: ZKAIRDROP_ABI,
+    functionName: 'maxClaims',
+    query: { enabled: !!airdropAddress },
+  });
+  const { data: hasClaimedData } = useReadContract({
+    address: airdropAddress,
+    abi: ZKAIRDROP_ABI,
+    functionName: 'hasClaimed',
+    args: address ? [address] : undefined,
+    query: { enabled: !!airdropAddress && !!address },
+  });
+
+  const onChainClaimed = totalClaimsData ? Number(totalClaimsData) : null;
+  const onChainMax = maxClaimsData ? Number(maxClaimsData) : null;
+  const alreadyClaimed = !!hasClaimedData;
+
   const [stage, setStage]           = useState<'idle' | 'generating' | 'ready' | 'claiming' | 'claimed'>('idle');
   const [progress, setProgress]     = useState(0);
   const [stepText, setStepText]     = useState('');
   const [proofResult, setProofResult] = useState<ProofResult | null>(null);
+  const [proofForContract, setProofForContract] = useState<ReturnType<typeof formatProofForContract> | null>(null);
   const [txHash, setTxHash]         = useState('');
   const [timeLeft, setTimeLeft]     = useState({ d: 2, h: 14, m: 37, s: 0 });
+
+  // Sync confirmed tx hash
+  useEffect(() => {
+    if (writeTxHash && isConfirmed) {
+      setTxHash(writeTxHash);
+      setStage('claimed');
+    }
+  }, [writeTxHash, isConfirmed]);
+
+  // Keep claiming stage active while tx is pending
+  useEffect(() => {
+    if (isWritePending || isConfirming) setStage('claiming');
+  }, [isWritePending, isConfirming]);
+
+  const claimed = onChainClaimed ?? 153;
+  const TOTAL_SUPPLY = onChainMax ?? 1000;
 
   // Countdown timer
   useEffect(() => {
@@ -114,6 +163,7 @@ export default function AirdropPage() {
       setProgress(100);
       setStepText('Proof ready!');
       setProofResult(result);
+      setProofForContract(formatProofForContract(result.proof));
       setTimeout(() => setStage('ready'), 400);
     } catch {
       clearInterval(interval);
@@ -123,12 +173,18 @@ export default function AirdropPage() {
   };
 
   const handleClaim = async () => {
-    setStage('claiming');
-    await new Promise(r => setTimeout(r, 2000));
-    const fakeTx = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    setTxHash(fakeTx);
-    setClaimed(c => c + 1);
-    setStage('claimed');
+    if (!proofResult || !proofForContract || !airdropAddress) return;
+    const toBig = (v: unknown) => BigInt(v as string);
+    const pA = proofForContract.a.map(toBig) as unknown as [bigint, bigint];
+    const pB = (proofForContract.b as string[][]).map(row => row.map(toBig)) as unknown as [[bigint, bigint], [bigint, bigint]];
+    const pC = proofForContract.c.map(toBig) as unknown as [bigint, bigint];
+    const pubSignals = proofResult.publicSignals.slice(0, 4).map(toBig) as [bigint, bigint, bigint, bigint];
+    writeContract({
+      address: airdropAddress,
+      abi: ZKAIRDROP_ABI,
+      functionName: 'claimWithAgeProof',
+      args: [pA, pB, pC, pubSignals],
+    });
   };
 
   const remaining = TOTAL_SUPPLY - claimed;
@@ -322,7 +378,7 @@ export default function AirdropPage() {
                   <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '1.5rem', lineHeight: 1.7 }}>
                     Tokens sent to your wallet. Your identity was never revealed.
                   </p>
-                  <a href={`https://hashkey-testnet-explorer.alt.technology/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
+                  <a href={`${explorerUrl}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '12px', fontFamily: "'JetBrains Mono', monospace", color: '#10b981', textDecoration: 'none', padding: '8px 16px', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, background: 'rgba(16,185,129,0.05)' }}
                   >
                     View on Explorer <ExternalLink size={12} />

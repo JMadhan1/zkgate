@@ -64,11 +64,11 @@ async function main() {
   data[key] = {
     chainId: Number(chainId),
     rpcUrl: network === "hashkeyTestnet"
-      ? "https://hashkeychain-testnet.alt.technology"
-      : "https://hashkeychain-mainnet.alt.technology",
+      ? "https://testnet.hsk.xyz"
+      : "https://mainnet.hsk.xyz",
     explorer: network === "hashkeyTestnet"
-      ? "https://hashkey-testnet-explorer.alt.technology"
-      : "https://hashkeychain-mainnet-explorer.alt.technology",
+      ? "https://testnet-explorer.hsk.xyz"
+      : "https://explorer.hsk.xyz",
     contracts: deployed,
     deployedAt: new Date().toISOString(),
     deployTxHashes: txHashes,
