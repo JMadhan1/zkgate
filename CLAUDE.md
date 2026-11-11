@@ -3,7 +3,7 @@
 ## Layout
 
 - `circuits/` Circom circuits (Groth16/BN128). Verification keys in `circuits/keys/` are committed; `.zkey`/`.wasm` are build outputs.
-- `backend/` FastAPI verifier. Security controls live in `backend/security.py` (headers, body limit, content-type, rate limit, error shape) and `backend/dependencies.py` (API-key auth, admin gate). `ENVIRONMENT=production` flips every default to the restrictive option.
+- `backend/` FastAPI verifier. Security controls live in `backend/security.py` (headers, body limit, content-type, rate limit, error shape) and `backend/dependencies.py` (API-key auth, admin gate, auth-failure lockout). Security events: `backend/security_log.py` (never pass secrets to it). `ENVIRONMENT=production` flips every default to the restrictive option.
 - `sdk/` JS SDK (parse eKYC XML, witness, prove).
 - `frontend/` Public site deployed to https://zkgate.net (Vercel, root directory `frontend`). CSP with per-request nonce in `frontend/proxy.ts`; other headers in `frontend/next.config.mjs`. See `docs/DEPLOYMENT.md`.
 - `verifier-portal/` Verifier demo UI.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,7 +7,10 @@ export const metadata: Metadata = {
   description: "Request and verify zero-knowledge identity proofs from citizens.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Reading request headers opts into per-request rendering, which the CSP
+  // nonce from proxy.ts requires (Next applies it to its own scripts).
+  await headers();
   return (
     <html lang="en">
       <body>

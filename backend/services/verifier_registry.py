@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import hashlib
 import secrets
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -24,6 +25,7 @@ class Verifier:
     name: str
     api_key_hash: str
     active: bool = True
+    key_created_at: float = field(default_factory=time.time)
 
 
 def _hash_key(api_key: str) -> str:
@@ -31,9 +33,10 @@ def _hash_key(api_key: str) -> str:
 
 
 class VerifierRegistry:
-    def __init__(self, seed_demo: bool = True) -> None:
+    def __init__(self, seed_demo: bool = True, max_key_age_days: int = 90) -> None:
         self._by_id: dict[str, Verifier] = {}
         self._id_by_keyhash: dict[str, str] = {}
+        self.max_key_age_seconds = max(0, max_key_age_days) * 86400
         if seed_demo:
             self._seed_demo()
 
@@ -58,12 +61,41 @@ class VerifierRegistry:
     def get(self, verifier_id: str) -> Verifier | None:
         return self._by_id.get(verifier_id)
 
-    def authenticate(self, api_key: str) -> Verifier | None:
+    def authenticate(self, api_key: str, now: float | None = None) -> Verifier | None:
         vid = self._id_by_keyhash.get(_hash_key(api_key))
         if vid is None:
             return None
         v = self._by_id[vid]
-        return v if v.active else None
+        if not v.active or self.key_expired(v, now):
+            return None
+        return v
+
+    def key_expired(self, v: Verifier, now: float | None = None) -> bool:
+        if not self.max_key_age_seconds:
+            return False
+        now = time.time() if now is None else now
+        return now - v.key_created_at > self.max_key_age_seconds
+
+    def rotate_key(self, verifier_id: str) -> str | None:
+        """Issue a new key and invalidate the old one immediately. Returns the
+        new plaintext key (shown once), or None if the verifier is unknown."""
+        v = self._by_id.get(verifier_id)
+        if v is None:
+            return None
+        self._id_by_keyhash.pop(v.api_key_hash, None)
+        api_key = "zkgate_sk_" + secrets.token_urlsafe(32)
+        v.api_key_hash = _hash_key(api_key)
+        v.key_created_at = time.time()
+        self._id_by_keyhash[v.api_key_hash] = verifier_id
+        return api_key
+
+    def revoke(self, verifier_id: str) -> bool:
+        v = self._by_id.get(verifier_id)
+        if v is None:
+            return False
+        v.active = False
+        self._id_by_keyhash.pop(v.api_key_hash, None)
+        return True
 
     def list_public(self) -> list[dict]:
         # Never expose key hashes.

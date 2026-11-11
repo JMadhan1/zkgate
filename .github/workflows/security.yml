@@ -28,6 +28,8 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
       - name: Type-check and build the site
         run: npm --workspace frontend run build
+      - name: Type-check and build the verifier portal
+        run: npm --workspace verifier-portal run build
       - name: SDK tests
         working-directory: sdk
         run: node --test test/*.mjs
@@ -46,6 +48,29 @@ jobs:
         run: pip-audit -r requirements.txt --strict
       - name: Tests (incl. security controls)
         run: python -m pytest -q
+
+  container:
+    name: Container scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - name: Build backend image
+        run: docker build -t zkgate-backend:ci backend
+      - name: Scan image (fail on fixable HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: zkgate-backend:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan Dockerfile / compose for misconfigurations
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
 
   secrets:
     name: Secret scan (gitleaks)

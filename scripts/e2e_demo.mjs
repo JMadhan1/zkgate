@@ -57,7 +57,7 @@ async function main() {
   // Preflight: is the backend up?
   try {
     const h = await (await fetch(`${API}/health`)).json();
-    console.log(`Backend: ${API} — ${h.status}, circuits: ${h.circuits_loaded?.join(", ")}`);
+    console.log(`Backend: ${API} — ${h.status}, circuits loaded: ${h.circuits_loaded}`);
   } catch {
     console.error(bad(`Backend not reachable at ${API}. Start it: npm run dev:backend`));
     process.exit(1);

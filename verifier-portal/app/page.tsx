@@ -2,7 +2,10 @@
 
 import { Fragment, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// In production the API must be configured explicitly (and be https, which
+// proxy.ts adds to the CSP); localhost is only a development default.
+const API =
+  process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
 const DEMO_VERIFIER = "99999";
 
 // The set of asks a verifier can make. Mirrors the API's claim catalogue; a real
@@ -28,6 +31,16 @@ export default function VerifierHome() {
     setBusy(true);
     setError(null);
     setResult(null);
+    if (!API) {
+      setError("No verifier API is configured for this deployment (set NEXT_PUBLIC_API_URL).");
+      setBusy(false);
+      return;
+    }
+    if (pasted.length > 1_000_000) {
+      setError("That's too large to be a proof bundle (max 1 MB).");
+      setBusy(false);
+      return;
+    }
     try {
       const bundle = JSON.parse(pasted);
       // Accept either a raw proof bundle (from the citizen portal's download) or

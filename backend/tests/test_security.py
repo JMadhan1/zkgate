@@ -82,8 +82,13 @@ def test_audit_requires_key_and_is_tenant_scoped(client, proofs):
     client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18", verifier_id="99999"))
     client.post("/v1/verify", json=bundle(proofs["citizen"], "india_citizen", verifier_id="88888"))
 
-    assert client.get("/v1/audit").status_code == 401
-    assert client.get("/v1/audit", headers={"X-API-Key": "wrong"}).status_code == 401
+    # Auth failures look exactly like a route that doesn't exist.
+    missing = client.get("/v1/audit")
+    wrong = client.get("/v1/audit", headers={"X-API-Key": "wrong"})
+    nowhere = client.get("/v1/does-not-exist")
+    for r in (missing, wrong):
+        assert r.status_code == 404
+        assert r.json()["error"]["message"] == nowhere.json()["error"]["message"]
 
     bank = client.get("/v1/audit", headers={"X-API-Key": "demo-bank-key"}).json()
     assert bank["events"] and all(e["verifier_id"] == "99999" for e in bank["events"])
@@ -123,7 +128,7 @@ def test_production_requires_api_key(client, proofs, monkeypatch):
 
     monkeypatch.setattr(settings, "environment", "production")
     r = client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18"))
-    assert r.status_code == 401
+    assert r.status_code == 404
     r = client.post(
         "/v1/verify",
         json=bundle(proofs["age18"], "age_above_18"),
@@ -153,3 +158,167 @@ def test_cors_allowlist_never_reflects_unknown_origin(client):
     )
     assert r.headers.get("access-control-allow-origin") == "https://zkgate.net"
     assert r.headers.get("access-control-allow-credentials") is None
+
+
+# ── authentication hardening ─────────────────────────────────────────────────
+
+@pytest.fixture
+def no_delay(monkeypatch):
+    """Skip the progressive auth-failure delay so tests stay fast."""
+    import dependencies
+
+    async def _instant(_s):
+        return None
+
+    monkeypatch.setattr(dependencies.asyncio, "sleep", _instant)
+
+
+def test_lockout_after_repeated_bad_keys(client, no_delay):
+    from config import settings
+
+    h = {"X-API-Key": "zkgate_sk_guess"}
+    for _ in range(settings.auth_failure_limit):
+        assert client.get("/v1/audit", headers=h).status_code == 404
+    locked = client.get("/v1/audit", headers=h)
+    assert locked.status_code == 429
+    assert int(locked.headers["retry-after"]) >= 1
+    # Even the right key is refused from a locked-out client.
+    assert client.get("/v1/audit", headers={"X-API-Key": "demo-bank-key"}).status_code == 429
+
+
+def test_key_rotation_revokes_old_key(client):
+    old = {"X-API-Key": "demo-bank-key"}
+    assert client.get("/v1/audit", headers=old).status_code == 200
+    r = client.post("/v1/verifiers/99999/rotate-key", json={})
+    assert r.status_code == 200
+    new_key = r.json()["api_key"]
+    assert new_key.startswith("zkgate_sk_") and len(new_key) >= 50
+    assert client.get("/v1/audit", headers=old).status_code == 404
+    assert client.get("/v1/audit", headers={"X-API-Key": new_key}).status_code == 200
+
+
+def test_rotate_unknown_verifier_is_404(client):
+    assert client.post("/v1/verifiers/123/rotate-key", json={}).status_code == 404
+
+
+def test_revoked_verifier_cannot_authenticate(client):
+    assert client.post("/v1/verifiers/88888/revoke", json={}).status_code == 200
+    assert client.get("/v1/audit", headers={"X-API-Key": "demo-age-key"}).status_code == 404
+
+
+def test_keys_expire_after_max_age():
+    from services.verifier_registry import VerifierRegistry
+
+    reg = VerifierRegistry(seed_demo=False, max_key_age_days=90)
+    v, key = reg.register(verifier_id="1", name="x")
+    assert reg.authenticate(key) is v
+    assert reg.authenticate(key, now=v.key_created_at + 91 * 86400) is None
+
+
+def test_admin_endpoints_need_token_when_configured(client, monkeypatch):
+    from config import settings
+
+    monkeypatch.setattr(settings, "admin_token", "t" * 40)
+    assert client.post("/v1/verifiers/99999/rotate-key", json={}).status_code == 404
+    assert client.post("/v1/verifiers/99999/revoke", json={}).status_code == 404
+
+
+# ── authorization: tenant scoping ────────────────────────────────────────────
+
+def test_nullifier_status_requires_key_and_is_owner_only(client, proofs):
+    r = client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18", verifier_id="99999")).json()
+    assert r["valid"] is True
+    path = f"/v1/nullifiers/age_above_18/{r['nullifier']}"
+
+    assert client.get(path).status_code == 404  # no key
+    mine = client.get(path, headers={"X-API-Key": "demo-bank-key"})
+    assert mine.status_code == 200 and mine.json()["used"] is True
+    assert "verifier" not in mine.json()["record"]
+    # Another verifier can't learn that this nullifier was spent elsewhere.
+    assert client.get(path, headers={"X-API-Key": "demo-age-key"}).status_code == 404
+
+
+def test_stats_require_key_in_production(client, monkeypatch):
+    from config import settings
+
+    monkeypatch.setattr(settings, "environment", "production")
+    assert client.get("/v1/stats").status_code == 404
+    assert client.get("/v1/stats", headers={"X-API-Key": "demo-bank-key"}).status_code == 200
+
+
+# ── information disclosure ───────────────────────────────────────────────────
+
+def test_health_reports_booleans_only(client):
+    body = client.get("/health").json()
+    assert set(body) == {"status", "circuits_loaded", "nullifier_store_healthy", "audit_chain_intact"}
+    assert all(isinstance(v, bool) for k, v in body.items() if k != "status")
+
+
+def test_root_does_not_advertise_version(client, monkeypatch):
+    from config import settings
+
+    assert "version" not in client.get("/").json()
+    monkeypatch.setattr(settings, "environment", "production")
+    assert "docs" not in client.get("/").json()
+
+
+def test_encode_does_not_echo_input(client):
+    r = client.get("/v1/encode/state", params={"name": "Atlantis"})
+    assert r.status_code == 404 and "Atlantis" not in r.text
+    r = client.get("/v1/encode/state", params={"name": "<script>"})
+    assert r.status_code == 422 and "<script>" not in r.text
+    assert client.get("/v1/encode/state", params={"name": "x" * 200}).status_code == 422
+
+
+def test_docs_disabled_in_production():
+    """A fresh app built with production settings serves no API docs."""
+    import importlib
+
+    import config
+    import main
+
+    original = config.settings.environment
+    try:
+        config.settings.environment = "production"
+        prod = importlib.reload(main).app
+        from fastapi.testclient import TestClient
+
+        c = TestClient(prod)
+        for path in ("/docs", "/redoc", "/openapi.json"):
+            assert c.get(path).status_code == 404
+    finally:
+        config.settings.environment = original
+        importlib.reload(main)
+
+
+# ── security event logging ───────────────────────────────────────────────────
+
+def test_security_events_logged_without_secrets(client, caplog, no_delay):
+    import json
+    import logging
+
+    caplog.set_level(logging.INFO, logger="zkgate.security_events")
+    client.get("/v1/audit", headers={"X-API-Key": "demo-bank-key"})
+    client.get("/v1/audit", headers={"X-API-Key": "zkgate_sk_wrong-secret-value"})
+
+    events = [json.loads(r.getMessage()) for r in caplog.records if r.name == "zkgate.security_events"]
+    ok = [e for e in events if e["action"] == "auth.api_key" and e["result"] == "success"]
+    bad = [e for e in events if e["action"] == "auth.api_key" and e["result"] == "failure"]
+    assert ok and bad
+    for e in events:
+        assert {"ts", "request_id", "ip", "actor", "action", "resource", "result"} <= set(e)
+        assert e["ts"].endswith("Z")
+    assert ok[0]["actor"] == "99999"
+    blob = caplog.text
+    assert "demo-bank-key" not in blob and "wrong-secret-value" not in blob
+
+
+def test_rate_limit_trigger_is_logged(client, caplog):
+    import logging
+
+    from config import settings
+
+    caplog.set_level(logging.INFO, logger="zkgate.security_events")
+    for _ in range(settings.rate_limit_requests + 1):
+        client.get("/v1/claims")
+    assert '"action":"rate_limit"' in caplog.text

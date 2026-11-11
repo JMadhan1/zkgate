@@ -22,7 +22,10 @@ import time
 import uuid
 from collections import deque
 
+from starlette.requests import Request
+
 from config import settings
+from security_log import security_event
 
 logger = logging.getLogger("zkgate.security")
 
@@ -88,6 +91,28 @@ class SlidingWindowLimiter:
         q.append(now)
         return None
 
+    def _live(self, key: str, now: float) -> deque[float] | None:
+        q = self._hits.get(key)
+        if q is not None:
+            cutoff = now - self.window
+            while q and q[0] <= cutoff:
+                q.popleft()
+        return q
+
+    def count(self, key: str, now: float | None = None) -> int:
+        """Hits for key inside the current window (does not record a hit)."""
+        q = self._live(key, time.monotonic() if now is None else now)
+        return len(q) if q else 0
+
+    def blocked(self, key: str, now: float | None = None) -> float | None:
+        """Seconds until key may try again if it's at the limit, else None.
+        Does not record a hit."""
+        now = time.monotonic() if now is None else now
+        q = self._live(key, now)
+        if q and len(q) >= self.limit:
+            return max(0.0, q[0] + self.window - now)
+        return None
+
     def _evict(self, now: float) -> None:
         cutoff = now - self.window
         for k in [k for k, q in self._hits.items() if not q or q[-1] <= cutoff]:
@@ -138,7 +163,10 @@ class SecurityMiddleware:
         if path != "/health":
             retry = limiter.hit(_client_key(scope))
             if retry is not None:
-                logger.warning("rate limit exceeded rid=%s path=%s", request_id, path)
+                security_event(
+                    "rate_limit", "blocked", request=Request(scope), level=logging.WARNING,
+                    method=scope["method"],
+                )
                 return await send_error(
                     send, 429, "rate limit exceeded", request_id,
                     [(b"retry-after", str(int(retry) + 1).encode())],

@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     # only in local development. Inject from a secret manager; never commit it.
     admin_token: str = ""
 
+    # API keys older than this stop working (rotate via
+    # POST /v1/verifiers/{id}/rotate-key). 0 disables expiry.
+    api_key_max_age_days: int = 90
+
+    # Failed authentication attempts per client IP before a lockout, and the
+    # window they're counted over (the lockout lasts the rest of the window).
+    auth_failure_limit: int = 5
+    auth_failure_window_seconds: int = 900
+
     # Requests per client per window (sliding window; per API key when one is
     # presented, else per client IP).
     rate_limit_requests: int = 120

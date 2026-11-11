@@ -9,6 +9,13 @@ with `REQUIRE_API_KEY`). Two demo verifiers are seeded **outside production
 only**: `99999` (key `demo-bank-key`) and `88888` (key `demo-age-key`). Their
 keys are public.
 
+**Auth failures look like missing routes.** A missing, wrong, expired or revoked
+key (or admin token) gets the same `404` as a route that doesn't exist, so
+probing can't map the API. After 5 failed attempts from one IP within 15
+minutes, that IP gets `429` with `Retry-After` for the rest of the window, with
+a growing delay before that. API keys expire after 90 days
+(`API_KEY_MAX_AGE_DAYS`). Rotate them with the admin endpoint below.
+
 **Request rules.** Request bodies must be `application/json` (else `415`) and at
 most 1 MB (else `413`). Unknown fields are rejected (`422`). Each client gets
 120 requests per 60 s, sliding window, per API key or else per IP; over the
@@ -68,8 +75,17 @@ Up to 100 bundles: `{ "proofs": [ <VerifyRequest>, ... ] }` →
 
 ## Nullifiers & stats
 
-- `GET /v1/nullifiers/{claim_type}/{nullifier}` — has this proof been used? `{ used: bool, record? }`
-- `GET /v1/stats` — anonymous counters `{ verified, replay, backend }`
+- `GET /v1/nullifiers/{claim_type}/{nullifier}` (**requires `X-API-Key`**): has this proof been
+  used *with me*? `{ used: bool, record? }`. A nullifier spent at another verifier answers `404`.
+- `GET /v1/stats` (API key required in production): aggregate counters `{ verified, replay, backend }`
+
+## Security event log
+
+Auth attempts (success and failure), lockouts, admin actions and rate-limit hits
+are written as JSON lines to the `zkgate.security_events` logger. Each line has
+`ts` (UTC ISO 8601), `request_id`, `ip`, `actor`, `action`, `resource` and `result`.
+Keys are logged only as a short SHA-256 fingerprint. Ship this logger to
+append-only storage with at least 90 days of retention.
 
 ## Claims & encoding
 
@@ -84,13 +100,17 @@ Up to 100 bundles: `{ "proofs": [ <VerifyRequest>, ... ] }` →
   and get back a `zkgate_sk_…` API key, shown **once**. Without `ADMIN_TOKEN` configured
   this is open in development and disabled in production. It answers `404` to anyone
   not authorised.
+- `POST /v1/verifiers/{id}/rotate-key` (**admin only**): issue a new key (shown once).
+  The old key stops working immediately.
+- `POST /v1/verifiers/{id}/revoke` (**admin only**): deactivate a verifier and its key.
 - `GET /v1/audit?limit=50` (**requires `X-API-Key`**, `1 ≤ limit ≤ 100`): the calling
   verifier's **own** recent audit events, plus a live hash-chain integrity check.
 
 ## Health
 
 - `GET /` — service banner
-- `GET /health` — `{ status: "ready"|"degraded", circuits_loaded, nullifier_backend, audit_chain_intact, ... }`
+- `GET /health`: `{ status, circuits_loaded, nullifier_store_healthy, audit_chain_intact }`,
+  booleans only (`503` when degraded). Details go to the server log, not the response.
 
 ## Privacy guarantee
 
