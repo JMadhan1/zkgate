@@ -19,7 +19,7 @@ the citizen proof demo at `/prove`. It deploys to Vercel as a monorepo project.
 | Variable | Purpose |
 | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | Canonical URL for metadata, sitemap and OG tags. Defaults to `https://zkgate.net`. |
-| `NEXT_PUBLIC_API_URL` | URL of a running FastAPI verifier (`backend/`). If it isn't set, the "Send to Demo Bank" step explains that no verifier is connected. |
+| `NEXT_PUBLIC_API_URL` | URL of a running FastAPI verifier (`backend/`). It must be `https://`: its origin is added to the CSP `connect-src` automatically. If it isn't set, the "Send to Demo Bank" step explains that no verifier is connected. Deploy the backend with `ENVIRONMENT=production`, a strong `ADMIN_TOKEN` from your secret manager, and `CORS_ORIGINS` set to the site's origins. |
 
 ## 2. Point zkgate.net at it
 
@@ -51,6 +51,15 @@ produced the committed verification keys, or commit the regenerated keys and
 fixtures together (`npm run regenerate:fixtures`). To ship the artifacts, either commit them (and relax the
 `frontend/public/circuits/*` rules in `.gitignore`) or host them on a CDN and
 proxy `/circuits/*` to it.
+
+## Security headers
+
+`frontend/proxy.ts` sets a strict Content-Security-Policy with a fresh nonce on
+every request, so pages render dynamically rather than as static HTML.
+`frontend/next.config.mjs` adds HSTS (with preload), `X-Frame-Options: DENY`,
+`nosniff`, a Referrer-Policy, a Permissions-Policy and COOP/COEP. The
+vulnerability contact is published at `/.well-known/security.txt` (see
+`SECURITY.md`). Once the domain is live, you can submit it at hstspreload.org.
 
 ## Local preview
 

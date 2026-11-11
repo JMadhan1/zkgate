@@ -6,7 +6,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 
 class ClaimType(str, Enum):
@@ -21,14 +23,26 @@ class ClaimType(str, Enum):
     PAN_HOLDER = "pan_holder"
 
 
+# A BN128 field element as a decimal string (< 2^254, so at most 77 digits).
+FieldElement = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,78}$")]
+# Verifier ids are numeric strings bound into the circuits.
+VerifierId = Annotated[str, StringConstraints(pattern=r"^[0-9]{1,18}$")]
+
+
 class ProofBundle(BaseModel):
     """A complete ZK proof as emitted by the citizen's browser (snarkjs shape)."""
 
-    proof: dict[str, Any] = Field(..., description="Groth16 proof: pi_a, pi_b, pi_c, protocol")
-    public_signals: list[str] = Field(..., description="Circuit public signals, in layout order")
+    proof: dict[str, Any] = Field(
+        ..., max_length=8, description="Groth16 proof: pi_a, pi_b, pi_c, protocol"
+    )
+    public_signals: list[FieldElement] = Field(
+        ..., min_length=1, max_length=32, description="Circuit public signals, in layout order"
+    )
     claim_type: ClaimType
-    circuit_version: str = Field(default="1.0.0")
-    generated_at: int = Field(..., description="Unix seconds when the proof was generated")
+    circuit_version: str = Field(default="1.0.0", max_length=20, pattern=r"^[0-9A-Za-z.\-]+$")
+    generated_at: int = Field(
+        ..., ge=0, le=2**40, description="Unix seconds when the proof was generated"
+    )
     demo: bool = Field(
         default=True,
         description="True if the UIDAI signature was accepted in demo mode rather "
@@ -36,6 +50,7 @@ class ProofBundle(BaseModel):
     )
 
     model_config = {
+        "extra": "forbid",
         "json_schema_extra": {
             "example": {
                 "proof": {
@@ -56,14 +71,22 @@ class ProofBundle(BaseModel):
 
 
 class VerifyRequest(BaseModel):
+    # Explicit fields only; unknown fields are rejected (no mass assignment).
+    model_config = ConfigDict(extra="forbid")
+
     proof_bundle: ProofBundle
-    verifier_id: str = Field(..., description="Registered verifier identifier (API key holder)")
-    expected: dict[str, Any] = Field(
+    verifier_id: VerifierId = Field(..., description="Registered verifier identifier (API key holder)")
+    expected: dict[
+        Annotated[str, StringConstraints(max_length=40)], int | str | bool | None
+    ] = Field(
         default_factory=dict,
+        max_length=8,
         description="What the verifier asked for: age_threshold, required_state_code, "
         "required_district_code. Used to reject a valid-but-off-topic proof.",
     )
-    purpose: str | None = Field(None, description="Free-text purpose, for the verifier's own audit")
+    purpose: str | None = Field(
+        None, max_length=500, description="Free-text purpose, for the verifier's own audit"
+    )
 
 
 class VerifyResponse(BaseModel):
@@ -96,6 +119,8 @@ class VerifyResponse(BaseModel):
 
 
 class BatchVerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     proofs: list[VerifyRequest] = Field(..., max_length=100)
 
 

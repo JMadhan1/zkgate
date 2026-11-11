@@ -3,6 +3,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Instrument_Serif } from "next/font/google";
 import NextLink from "next/link";
+import { headers } from "next/headers";
 import { Nav } from "@/components/Nav";
 import { REPO_URL, SITE_URL } from "@/lib/site";
 import { Effects } from "@/components/Effects";
@@ -44,10 +45,10 @@ export const viewport: Viewport = {
   ],
 };
 
-// Runs before paint so the stored/system theme applies without a flash.
-const themeScript = `(function(){try{var t=localStorage.getItem('zk-theme');if(!t){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){}document.documentElement.classList.remove('no-js')})()`;
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Per-request CSP nonce from proxy.ts (also makes rendering dynamic, which
+  // nonces require).
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -55,7 +56,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Sets the theme before first paint; external file, no inline script. */}
+        <script src="/theme-init.js" nonce={nonce} />
       </head>
       <body>
         <a href="#main" className="skip-link">Skip to content</a>

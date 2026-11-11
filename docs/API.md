@@ -1,10 +1,27 @@
 # API Reference
 
-Base URL (dev): `http://localhost:8000`. Interactive docs at `/docs` when running.
+Base URL (dev): `http://localhost:8000`. Interactive docs at `/docs` in
+development only. They're disabled when `ENVIRONMENT=production`.
 
-Authentication is optional in the prototype (`REQUIRE_API_KEY=false`). When on,
-pass `X-API-Key`. Two demo verifiers are seeded: `99999` (key `demo-bank-key`) and
-`88888` (key `demo-age-key`).
+**Authentication.** Verifiers send `X-API-Key`. Keys are required in production
+and optional in development, so the local demo works without setup (override
+with `REQUIRE_API_KEY`). Two demo verifiers are seeded **outside production
+only**: `99999` (key `demo-bank-key`) and `88888` (key `demo-age-key`). Their
+keys are public.
+
+**Request rules.** Request bodies must be `application/json` (else `415`) and at
+most 1 MB (else `413`). Unknown fields are rejected (`422`). Each client gets
+120 requests per 60 s, sliding window, per API key or else per IP; over the
+limit returns `429` with `Retry-After`.
+
+**Errors.** Every error, whatever the status, has the same shape and never
+contains stack traces or echoed input:
+
+```json
+{ "error": { "code": 422, "message": "invalid request: verifier_id: …", "request_id": "…" } }
+```
+
+The `request_id` is also returned in the `X-Request-ID` header and in server logs.
 
 ## Verification
 
@@ -62,9 +79,13 @@ Up to 100 bundles: `{ "proofs": [ <VerifyRequest>, ... ] }` →
 
 ## Verifiers & audit
 
-- `GET /v1/verifiers` — public directory (no secrets)
-- `POST /v1/verifiers` — register `{ verifier_id, name }` → returns an API key **once**
-- `GET /v1/audit?limit=50` — recent audit events + a live hash-chain integrity check
+- `GET /v1/verifiers`: public directory (no secrets)
+- `POST /v1/verifiers` (**admin only**, `X-Admin-Token`): register `{ verifier_id, name }`
+  and get back a `zkgate_sk_…` API key, shown **once**. Without `ADMIN_TOKEN` configured
+  this is open in development and disabled in production. It answers `404` to anyone
+  not authorised.
+- `GET /v1/audit?limit=50` (**requires `X-API-Key`**, `1 ≤ limit ≤ 100`): the calling
+  verifier's **own** recent audit events, plus a live hash-chain integrity check.
 
 ## Health
 

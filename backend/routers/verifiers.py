@@ -2,18 +2,21 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 import dependencies
-from dependencies import require_verifier
+from dependencies import require_admin, require_authenticated_verifier
 
 router = APIRouter()
 
 
 class RegisterVerifier(BaseModel):
-    verifier_id: str
-    name: str
+    # Explicit fields only (no mass assignment); unknown fields are rejected.
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    verifier_id: str = Field(..., pattern=r"^[0-9]{1,18}$", description="Numeric id bound into circuits")
+    name: str = Field(..., min_length=1, max_length=100, pattern=r"^[^\x00-\x1f<>]+$")
 
 
 @router.get("/verifiers")
@@ -22,14 +25,14 @@ async def list_verifiers():
     return {"verifiers": dependencies.verifiers.list_public()}
 
 
-@router.post("/verifiers")
+@router.post("/verifiers", dependencies=[Depends(require_admin)])
 async def register_verifier(body: RegisterVerifier):
     """
-    Register a verifier and mint an API key.
+    Register a verifier and mint an API key. Admin only (X-Admin-Token).
 
     The key is shown ONCE in the response and only its hash is retained — we
-    cannot show it again, which is the point. In production this sits behind an
-    admin auth boundary; for the prototype it is open so a demo can self-serve.
+    cannot show it again, which is the point. Without ADMIN_TOKEN configured
+    this endpoint is open only in local development and disabled in production.
     """
     if dependencies.verifiers.get(body.verifier_id) is not None:
         raise HTTPException(409, f"verifier_id {body.verifier_id} already exists")
@@ -43,17 +46,22 @@ async def register_verifier(body: RegisterVerifier):
 
 
 @router.get("/audit")
-async def audit_tail(limit: int = 50, caller=Depends(require_verifier)):
+async def audit_tail(
+    limit: int = Query(50, ge=1, le=100),
+    caller=Depends(require_authenticated_verifier),
+):
     """
-    Recent audit events plus a live integrity check of the hash chain.
+    The calling verifier's own recent audit events, plus a live integrity
+    check of the whole hash chain.
 
-    The events name no citizen — only claims, verifiers, verdicts and anonymous
-    nullifiers — so this is safe to expose to a verifier for their own records.
+    Requires a valid X-API-Key and is scoped to that verifier: one verifier
+    can never read another's records.
     """
     intact, broken_at = dependencies.audit.verify_chain()
+    events = dependencies.audit.events_for(caller.verifier_id, limit)
     return {
         "chain_intact": intact,
         "broken_at": broken_at,
-        "count": len(dependencies.audit),
-        "events": dependencies.audit.tail(min(limit, 200)),
+        "count": len(events),
+        "events": events,
     }

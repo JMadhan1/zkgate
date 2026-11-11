@@ -22,11 +22,12 @@ const CLAIMS = [
   { id: "india_citizen", verdict: "india_citizen: true", keep: [] as string[] },
 ];
 
-const HEX = "0123456789abcdef";
+// Decorative only, but use the CSPRNG anyway: no Math.random in this codebase.
 function randHex(n: number) {
-  let s = "";
-  for (let i = 0; i < n; i++) s += HEX[(Math.random() * 16) | 0];
-  return s;
+  if (n <= 0) return "";
+  const bytes = new Uint8Array(Math.ceil(n / 2));
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, n);
 }
 
 type Phase = "idle" | "hiding" | "proving" | "done";

@@ -104,7 +104,7 @@ def test_demo_flag_surfaces_as_trust_level(client, proofs):
 def test_audit_chain_intact_after_traffic(client, proofs):
     client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18"))
     client.post("/v1/verify", json=bundle(proofs["citizen"], "india_citizen"))
-    audit = client.get("/v1/audit").json()
+    audit = client.get("/v1/audit", headers={"X-API-Key": "demo-bank-key"}).json()
     assert audit["chain_intact"] is True
     assert audit["count"] >= 2
 

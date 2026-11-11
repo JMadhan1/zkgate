@@ -1,0 +1,23 @@
+# gitleaks config: default rules, plus a narrow allowlist of values that are
+# PUBLIC BY DESIGN (documented in SECURITY.md). Anything else is a real finding.
+title = "zkgate gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Publicly documented demo values; not secrets"
+regexes = [
+  # Demo issuer key in frontend/lib/prove.ts: hex of "DEMO-ONLY-KEY-NOT-FOR-PRODUCTION!".
+  # Never registered as a trusted issuer; proofs signed with it report trust_level "demo".
+  '''44454d4f2d4f4e4c592d4b45592d4e4f542d464f522d50524f44554354494f4e21''',
+  # Demo verifier API keys printed in the docs; not seeded when ENVIRONMENT=production.
+  '''demo-bank-key''',
+  '''demo-age-key''',
+  # Former local-only docker-compose password (removed; compose now reads it from .env).
+  '''zkgate_dev_password''',
+]
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)backend/tests/fixtures\.json$''',
+]

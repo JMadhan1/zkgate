@@ -31,19 +31,25 @@ def _hash_key(api_key: str) -> str:
 
 
 class VerifierRegistry:
-    def __init__(self) -> None:
+    def __init__(self, seed_demo: bool = True) -> None:
         self._by_id: dict[str, Verifier] = {}
         self._id_by_keyhash: dict[str, str] = {}
-        self._seed_demo()
+        if seed_demo:
+            self._seed_demo()
 
     def _seed_demo(self) -> None:
         # Two well-known demo verifiers. The keys are printed in the docs; they
         # are not secrets, they exist so the demo and tests have something to use.
+        # Because they are public, they are NOT seeded in production (see
+        # config.seed_demo_verifiers).
         self.register(verifier_id="99999", name="Demo Bank (KYC)", api_key="demo-bank-key")
         self.register(verifier_id="88888", name="Demo Liquor Retailer (age)", api_key="demo-age-key")
 
     def register(self, *, verifier_id: str, name: str, api_key: str | None = None) -> tuple[Verifier, str]:
-        api_key = api_key or ("zkg_" + secrets.token_urlsafe(24))
+        # 32 random bytes = 256 bits of entropy; product prefix makes leaked
+        # keys identifiable by secret scanners. Only a SHA-256 digest is kept
+        # (appropriate for high-entropy keys, unlike passwords).
+        api_key = api_key or ("zkgate_sk_" + secrets.token_urlsafe(32))
         v = Verifier(verifier_id=verifier_id, name=name, api_key_hash=_hash_key(api_key))
         self._by_id[verifier_id] = v
         self._id_by_keyhash[v.api_key_hash] = verifier_id

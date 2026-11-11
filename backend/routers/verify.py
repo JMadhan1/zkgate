@@ -38,7 +38,7 @@ router = APIRouter()
 
 
 def _new_proof_id() -> str:
-    return "prf_" + uuid.uuid4().hex[:12]
+    return "prf_" + uuid.uuid4().hex  # full 128-bit random id
 
 
 async def _verify_one(req: VerifyRequest, caller) -> VerifyResponse:

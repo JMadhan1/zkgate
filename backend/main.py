@@ -15,11 +15,14 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import settings
 from routers import claims, health, nullifiers, verifiers, verify
+from security import SecurityMiddleware, error_payload
 
 logging.basicConfig(
     level=logging.INFO,
@@ -53,26 +56,36 @@ app = FastAPI(
         "Even a full breach of this service reveals nothing about any citizen, "
         "because nothing about any citizen is stored."
     ),
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # API docs are an attack-surface map; they are off in production.
+    docs_url="/docs" if settings.docs_on else None,
+    redoc_url="/redoc" if settings.docs_on else None,
+    openapi_url="/openapi.json" if settings.docs_on else None,
 )
 
 
 @app.middleware("http")
-async def timing_and_headers(request: Request, call_next):
+async def timing(request: Request, call_next):
     start = time.perf_counter()
     response = await call_next(request)
     response.headers["X-Process-Time-Ms"] = f"{(time.perf_counter() - start) * 1000:.1f}"
-    response.headers["X-ZKGate-Version"] = "1.0.0"
     return response
+
+
+# Order matters: the last middleware added is the outermost. Security limits run
+# before routing; CORS wraps everything so even 413/415/429 answers are readable
+# by the allowed browser origins.
+app.add_middleware(SecurityMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    # Strict allowlist — never "*", never a reflected Origin.
+    allow_origins=[o for o in settings.cors_origins if o != "*"],
+    # Auth is an X-API-Key header, never a cookie, so credentials stay off.
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-API-Key", "X-Admin-Token"],
+    expose_headers=["X-Request-ID", "Retry-After"],
+    max_age=600,
+)
 
 
 app.include_router(health.router, tags=["Health"])
@@ -82,7 +95,37 @@ app.include_router(claims.router, prefix="/v1", tags=["Claims"])
 app.include_router(verifiers.router, prefix="/v1", tags=["Verifiers"])
 
 
+# ── One error shape for every status; no stack traces or internals ────────
+
+def _rid(request: Request) -> str | None:
+    return request.scope.get("state", {}).get("request_id")
+
+
+def _error(request: Request, status: int, message: str, headers=None) -> JSONResponse:
+    return JSONResponse(
+        status_code=status,
+        content=error_payload(status, message, _rid(request)),
+        headers=headers,
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_error(request: Request, exc: StarletteHTTPException):
+    return _error(request, exc.status_code, str(exc.detail), getattr(exc, "headers", None))
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request: Request, exc: RequestValidationError):
+    # Field paths and reasons only — never echo the submitted values back.
+    problems = [
+        f"{'.'.join(str(p) for p in e.get('loc', ()) if p != 'body')}: {e.get('msg', 'invalid')}"
+        for e in exc.errors()[:5]
+    ]
+    return _error(request, 422, "invalid request: " + "; ".join(problems))
+
+
 @app.exception_handler(Exception)
 async def _unhandled(request: Request, exc: Exception):  # pragma: no cover
-    logger.exception("unhandled error on %s", request.url.path)
-    return JSONResponse(status_code=500, content={"error": "internal error", "detail": str(exc)})
+    # Full detail goes to the server log (with the request id), never the client.
+    logger.exception("unhandled error rid=%s path=%s", _rid(request), request.url.path)
+    return _error(request, 500, "internal error")

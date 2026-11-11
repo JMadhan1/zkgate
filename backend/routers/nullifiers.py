@@ -2,23 +2,27 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 
 import dependencies
+from models.proof import ClaimType
 
 router = APIRouter()
 
 
 @router.get("/nullifiers/{claim_type}/{nullifier}")
-async def nullifier_status(claim_type: str, nullifier: str):
+async def nullifier_status(
+    claim_type: ClaimType,
+    nullifier: str = Path(..., pattern=r"^[0-9]{1,78}$"),
+):
     """
     Has this proof been used? A verifier can check before honouring a proof they
     received out of band. Returns 'unused' or the (anonymous) prior record.
     """
-    record = await dependencies.nullifiers.status(claim_type, nullifier)
+    record = await dependencies.nullifiers.status(claim_type.value, nullifier)
     if record is None:
-        return {"nullifier": nullifier, "claim_type": claim_type, "used": False}
-    return {"nullifier": nullifier, "claim_type": claim_type, "used": True, "record": record}
+        return {"nullifier": nullifier, "claim_type": claim_type.value, "used": False}
+    return {"nullifier": nullifier, "claim_type": claim_type.value, "used": True, "record": record}
 
 
 @router.get("/stats")

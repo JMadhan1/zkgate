@@ -18,6 +18,22 @@ const API =
 // request; here it's hardcoded so the page is self-contained.
 const DEMO_VERIFIER = "99999";
 
+// Real eKYC XMLs are tens of KB (mostly the photo). Anything far larger is not one.
+const MAX_XML_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Cheap structural checks before the XML reaches the parser. The SDK parser
+ * never expands entities, but we refuse DTDs outright (XXE / entity-expansion
+ * hygiene), plus NUL bytes and oversized input.
+ */
+function checkXml(text: string): string | null {
+  if (new Blob([text]).size > MAX_XML_BYTES) return "That file is too large to be an offline eKYC XML (max 2 MB).";
+  if (text.includes("\u0000")) return "The XML contains NUL bytes, so it can't be an eKYC file.";
+  if (/<!DOCTYPE|<!ENTITY/i.test(text)) return "XML with a DOCTYPE or ENTITY declaration isn't accepted.";
+  if (!/<OfflinePaperlessKyc[\s>]/.test(text)) return "This doesn't look like a UIDAI offline eKYC XML (no <OfflinePaperlessKyc> element).";
+  return null;
+}
+
 type ProveStage = "idle" | "artifacts" | "witness" | "prove";
 type Problem = { kind: "error" | "info"; title: string; body: React.ReactNode };
 
@@ -51,8 +67,17 @@ export default function ProvePage() {
 
   // ── Step 1: load & parse ────────────────────────────────────────────
   async function readFile(f: File) {
+    setProblem(null);
+    if (!/\.xml$/i.test(f.name) || (f.type && !/xml/.test(f.type))) {
+      setProblem({ kind: "error", title: "Not an XML file", body: "Choose the .xml file from your UIDAI offline eKYC download." });
+      return;
+    }
+    if (f.size > MAX_XML_BYTES) {
+      setProblem({ kind: "error", title: "File too large", body: "Offline eKYC XMLs are well under 2 MB." });
+      return;
+    }
     setFileName(f.name);
-    setXml(await f.text());
+    setXml((await f.text()).normalize("NFC"));
     setParsed(null);
     setProof(null);
     setVerifyResult(null);
@@ -60,6 +85,11 @@ export default function ProvePage() {
 
   async function onParse(source = xml) {
     setProblem(null);
+    const bad = checkXml(source);
+    if (bad) {
+      setProblem({ kind: "error", title: "Couldn't read that XML", body: bad });
+      return;
+    }
     try {
       const { parse } = await import("@/lib/prove");
       const p = await parse(source);
@@ -297,6 +327,8 @@ export default function ProvePage() {
               <span>Parsing runs entirely in your browser. Open your network tab: no request is made in this step.</span>
             </p>
 
+            {problem && !parsed && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+
             {parsed && (
               <div className="fade-in" style={{ marginTop: 22 }}>
                 <div className="panel-head" style={{ marginBottom: 12 }}>
@@ -383,7 +415,7 @@ export default function ProvePage() {
               </div>
             )}
 
-            {problem && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+            {problem && parsed && !proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
           </section>
 
           {/* ── Step 3 ───────────────────────────────────────────────── */}
@@ -441,7 +473,7 @@ export default function ProvePage() {
                   </div>
                 </div>
               )}
-              {problem && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+              {problem && proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
             </section>
           )}
 
