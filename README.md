@@ -247,6 +247,7 @@ Full, sourced comparison: [`docs/COMPARISON_ANON_AADHAAR.md`](docs/COMPARISON_AN
 | [`docs/XML_SIGNATURE_SPIKE.md`](docs/XML_SIGNATURE_SPIKE.md) | In-circuit UIDAI XML verification: what it would cost |
 | [`docs/PROVING_SYSTEM_EVALUATION.md`](docs/PROVING_SYSTEM_EVALUATION.md) | Circom/Groth16 vs. Halo2/Noir, and why |
 | [`docs/COMPARISON_ANON_AADHAAR.md`](docs/COMPARISON_ANON_AADHAAR.md) | Where this project stands against Anon Aadhaar, honestly |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Deploying the site to zkgate.net on Vercel |
 | API reference | Run the backend and open **http://localhost:8000/docs** |
 
 ---
