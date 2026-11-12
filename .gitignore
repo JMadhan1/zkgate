@@ -41,3 +41,8 @@ scripts/issuer/demo_issuer_key.json
 Thumbs.db
 .idea/
 .vscode/
+
+# BlindPay local development state (never commit)
+blindpay/backend/blindpay-dev.db
+blindpay/backend/.blindpay-dev.key
+blindpay/backend/*.db

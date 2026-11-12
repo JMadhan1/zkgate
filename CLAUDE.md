@@ -7,6 +7,7 @@
 - `sdk/` JS SDK (parse eKYC XML, witness, prove).
 - `frontend/` Public site deployed to https://zkgate.net (Vercel, root directory `frontend`). CSP with per-request nonce in `frontend/proxy.ts`; other headers in `frontend/next.config.mjs`. See `docs/DEPLOYMENT.md`.
 - `verifier-portal/` Verifier demo UI.
+- `blindpay/` BlindPay: WhatsApp-first spend requests with UPI payouts, GST capture and (Phase 2) proof-of-policy. `blindpay/backend` is a FastAPI service (SQLAlchemy; SQLite in dev, Postgres in prod) reusing ZKGate's security middleware. Spending policies are stored only as AES-256-GCM ciphertext; declines name a rule, never a number. Plan: the "BlindPay — Deep Research & Build Map" doc.
 
 ## Checks to run before committing
 
@@ -16,6 +17,7 @@ npm --workspace frontend run build
 (cd backend && python -m pytest -q)
 npm audit --omit=dev --audit-level=high
 (cd backend && pip-audit -r requirements.txt)
+(cd blindpay/backend && python -m pytest -q && pip-audit -r requirements.txt)
 ```
 
 CI (`.github/workflows/security.yml`) runs these plus gitleaks and CodeQL.

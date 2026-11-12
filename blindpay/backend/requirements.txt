@@ -1,0 +1,13 @@
+fastapi==0.162.4
+uvicorn[standard]==0.54.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
+sqlalchemy==2.1.8
+cryptography==50.0.2
+httpx==0.28.1
+
+# Postgres in production (DATABASE_URL=postgresql+psycopg://...)
+psycopg[binary]==3.3.2
+
+# Tests
+pytest==9.2.0
