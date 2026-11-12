@@ -21,7 +21,7 @@
     "regenerate:fixtures": "node scripts/regenerate_fixtures.mjs"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^10.0.7"
   },
   "engines": {
     "node": ">=20"
