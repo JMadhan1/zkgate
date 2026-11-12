@@ -12,7 +12,6 @@
   "dependencies": {
     "@zkgate/sdk": "*",
     "circomlibjs": "^0.1.7",
-    "geist": "^1.9.2",
     "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

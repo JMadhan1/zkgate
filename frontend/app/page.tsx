@@ -1,266 +1,187 @@
 import NextLink from "next/link";
-import { HeroVisual } from "@/components/HeroVisual";
-import { Pipeline } from "@/components/Pipeline";
-import { Arrow, Chakra, Cpu, Github, Info, Layers, Lock, Repeat, Server, Shield, Sparkle } from "@/components/icons";
+import { Hero } from "@/components/Hero";
+import { IdCompare } from "@/components/IdCompare";
+import { Story } from "@/components/Story";
+import { Arrow, ArrowUpRight, Chakra, Github, Info, Lock, Repeat, Shield } from "@/components/icons";
 import { REPO_URL } from "@/lib/site";
 
-const MARQUEE = [
-  "Groth16 over BN128",
-  "5 Circom circuits",
-  "In-browser proving",
+const TAPE = [
+  "Prove the fact",
+  "Keep the person",
+  "Groth16 on your device",
   "~800-byte proofs",
-  "Poseidon nullifiers",
-  "Replay-proof by design",
-  "Hash-chained audit log",
+  "Replay-proof",
   "DPDP-ready age checks",
-  "No Aadhaar number transmitted",
-  "Python ⇄ snarkjs cross-checked",
+  "No Aadhaar number sent",
 ];
+const TAPE_BACK = ["Zero personal data", "Sovereign by design", "Built for India", "Open source", "Real cryptography"];
 
-const CLAIM_TYPES = [
-  {
-    code: "age_above_18 / 21 / 60",
-    title: "Age threshold",
-    learns: ["Threshold met (boolean)"],
-    hidden: ["DOB", "Exact age", "Name", "Address", "Aadhaar no."],
-  },
-  {
-    code: "india_citizen",
-    title: "Valid Aadhaar holder",
-    learns: ["A UIDAI-signed Aadhaar exists"],
-    hidden: ["Everything else"],
-    note: "Only 4 public signals",
-  },
-  {
-    code: "state_resident / district_resident",
-    title: "Residency",
-    learns: ["State (or state + district), only if asked"],
-    hidden: ["House", "Street", "Pincode", "DOB", "Name"],
-  },
-  {
-    code: "compound_kyc",
-    title: "Full KYC in one proof",
-    learns: ["Valid Aadhaar", "Age ≥ N", "State"],
-    hidden: ["DOB", "Exact age", "Full address", "Name"],
-    note: "All bound to one person",
-  },
-  {
-    code: "pan_holder",
-    title: "PAN holder",
-    learns: ["Holds a linked PAN", "Per-verifier pseudonym"],
-    hidden: ["The PAN number itself"],
-  },
+const CLAIMS = [
+  { code: "age_above_18 · 21 · 60", title: "Age threshold", yes: ["Threshold met"], no: ["DOB", "Exact age", "Name", "Address", "Aadhaar no."] },
+  { code: "india_citizen", title: "Valid Aadhaar holder", yes: ["A UIDAI-signed Aadhaar exists"], no: ["Everything else"] },
+  { code: "state_resident · district_resident", title: "Residency", yes: ["State (or district), if asked"], no: ["House", "Street", "PIN", "DOB", "Name"] },
+  { code: "compound_kyc", title: "Full KYC, one proof", yes: ["Valid Aadhaar", "Age ≥ N", "State"], no: ["DOB", "Exact age", "Address", "Name"] },
+  { code: "pan_holder", title: "PAN holder", yes: ["Linked PAN", "Per-verifier pseudonym"], no: ["The PAN itself"] },
 ];
 
 const COMPARE = [
-  { sys: "UIDAI New Aadhaar App", live: ["yes", "Yes, 40M+ downloads"], zk: ["mid", "Selective disclosure (reveals real value)"] },
-  { sys: "Google Wallet Aadhaar VC", live: ["yes", "Yes"], zk: ["mid", "Selective disclosure (ISO 18013-5 mdoc)"] },
-  { sys: "Anon Aadhaar (Ethereum Foundation)", live: ["mid", "Pre-production"], zk: ["zk", "True ZK (QR-based)"] },
-  { sys: "Self Protocol (self.xyz)", live: ["yes", "Yes, funded"], zk: ["zk", "True ZK"] },
-  { sys: "ZKGate India", live: ["mid", "Prototype"], zk: ["zk", "True ZK, offline eKYC XML channel"], us: true },
+  { sys: "UIDAI New Aadhaar App", live: ["y", "Yes, 40M+ downloads"], model: ["m", "Selective disclosure (reveals the real value)"] },
+  { sys: "Google Wallet Aadhaar VC", live: ["y", "Yes"], model: ["m", "Selective disclosure (ISO 18013-5 mdoc)"] },
+  { sys: "Anon Aadhaar (Ethereum Foundation)", live: ["m", "Pre-production"], model: ["zk", "True ZK (QR-based)"] },
+  { sys: "Self Protocol (self.xyz)", live: ["y", "Yes, funded"], model: ["zk", "True ZK"] },
+  { sys: "ZKGate India", live: ["m", "Prototype"], model: ["zk", "True ZK, offline eKYC XML channel"], us: true },
 ];
 
 const REPO = [
-  { path: "circuits/", title: "5 Circom circuits", body: "Groth16 over BN128: age, location, citizenship, compound KYC and PAN, each with its own trusted setup." },
-  { path: "backend/", title: "FastAPI verifier", body: "Python Groth16 verifier, nullifier replay guard and a tamper-evident, hash-chained audit log." },
-  { path: "sdk/", title: "JavaScript SDK", body: "Parses Aadhaar XML, derives the secret, builds the witness, then generates and submits proofs." },
-  { path: "frontend/", title: "Citizen portal", body: "In-browser proof generation, so the XML never leaves the device. You're looking at it." },
+  { path: "circuits/", title: "5 Circom circuits", body: "Groth16 over BN128: age, location, citizenship, compound KYC, PAN." },
+  { path: "backend/", title: "FastAPI verifier", body: "Python Groth16 verifier, replay guard and hash-chained audit log." },
+  { path: "sdk/", title: "JavaScript SDK", body: "Parse XML, derive the secret, build the witness, prove." },
+  { path: "frontend/", title: "This site", body: "In-browser proving. The XML never leaves the device." },
   { path: "verifier-portal/", title: "Verifier portal", body: "Request a claim, verify a proof, reject replays." },
 ];
 
 export default function Home() {
   return (
     <>
-      {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="hero">
-        <div className="grid-bg" aria-hidden />
-        <div className="container hero-grid">
-          <div>
-            <span className="pill-badge reveal">
-              <span className="flag" aria-hidden><i style={{ background: "#FF9933" }} /><i style={{ background: "#fff" }} /><i style={{ background: "#138808" }} /></span>
-              <span><b>Sovereign Technology</b> for India</span>
-            </span>
-            <h1 className="reveal" style={{ ["--d" as string]: "80ms" }}>
-              Prove a fact. <span className="serif tri-text">Not your identity.</span>
-            </h1>
-            <p className="lede reveal" style={{ ["--d" as string]: "160ms" }}>
-              ZKGate is India&apos;s indigenous zero-knowledge identity layer. Prove you&apos;re over 18, a resident of
-              your state, or a valid Aadhaar holder with a ~800-byte proof that reveals nothing else. No name, no date of
-              birth, no address, no Aadhaar number.
-            </p>
-            <div className="hero-cta reveal" style={{ ["--d" as string]: "240ms" }}>
-              <NextLink href="/prove" className="btn btn-primary">
-                Generate a proof <Arrow className="arrow" />
-              </NextLink>
-              <a href="#how" className="btn">See how it works</a>
-            </div>
-            <div className="hero-meta reveal" style={{ ["--d" as string]: "320ms" }}>
-              <div><b>~800 B</b><span>proof size</span></div>
-              <div><b>0</b><span>personal fields sent</span></div>
-              <div><b>5</b><span>circuits, real Groth16</span></div>
-            </div>
-          </div>
-          <div className="reveal" style={{ ["--d" as string]: "200ms" }}>
-            <HeroVisual />
-          </div>
-        </div>
-      </section>
+      <Hero />
 
-      <div className="marquee" aria-label="Key properties">
-        <div className="marquee-track">
-          {[...MARQUEE, ...MARQUEE].map((m, i) => (
-            <span className="marquee-item" key={i} aria-hidden={i >= MARQUEE.length}><i />{m}</span>
-          ))}
-        </div>
+      <div className="tape-zone" aria-hidden>
+        <div className="tape back"><div className="tape-track">{[...TAPE_BACK, ...TAPE_BACK, ...TAPE_BACK].map((t, i) => <span className="tape-item" key={i}>{t}</span>)}</div></div>
+        <div className="tape"><div className="tape-track">{[...TAPE, ...TAPE].map((t, i) => <span className="tape-item" key={i}>{t}</span>)}</div></div>
       </div>
 
-      {/* ── Problem ──────────────────────────────────────────────────── */}
-      <section className="section" id="problem">
+      {/* ── 01 Problem ─────────────────────────────────────────────── */}
+      <section className="section" id="problem" style={{ paddingTop: "clamp(50px, 7vw, 90px)" }}>
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow reveal">Why this exists</span>
-            <h2 className="h-section reveal">
-              India&apos;s identity system runs on <span className="serif">over-disclosure.</span>
-            </h2>
+            <span className="kicker reveal"><span className="num">01</span> Why this exists</span>
+            <h2 className="h-section reveal">India runs on <span className="serif mark">over&#8209;disclosure.</span></h2>
             <p className="lede reveal">
-              Proving one fact about yourself usually means handing over your entire identity. That design choice has a
-              real cost today.
+              Proving one fact about yourself usually means handing over your entire identity, as a photocopy, to
+              every bank, app and SIM shop that asks. That has a real cost.
             </p>
           </div>
           <div className="stats">
-            <article className="card spot stat reveal">
-              <div className="stat-num saffron">₹22,495 Cr</div>
-              <p>Lost to cyber fraud in India in 2025, much of it through &ldquo;digital arrest&rdquo; scams that rely on citizens believing that sharing Aadhaar or PAN is a normal verification step.</p>
+            <article className="stat reveal">
+              <span className="idx">Cyber fraud · 2025</span>
+              <div className="big s">₹22,495 Cr</div>
+              <p>Lost to cyber fraud in India in 2025, much of it through &ldquo;digital arrest&rdquo; scams built on the belief that sharing Aadhaar or PAN is normal.</p>
               <cite>Source: 2025 cyber-fraud reporting, PIB alerts</cite>
             </article>
-            <article className="card spot stat reveal" style={{ ["--d" as string]: "100ms" }}>
-              <div className="stat-num chakra">7.9M+</div>
-              <p>KYC records (Aadhaar, PAN, documents) leaked from a single compromised fintech vendor in January 2025. Aggregating full documents is a systemic risk.</p>
+            <article className="stat reveal" style={{ ["--d" as string]: "90ms" }}>
+              <span className="idx">One vendor breach</span>
+              <div className="big">7.9M+</div>
+              <p>KYC records (Aadhaar, PAN, documents) leaked from a single compromised fintech vendor in January 2025.</p>
               <cite>Source: dark-web breach reporting, Jan 2025</cite>
             </article>
-            <article className="card spot stat reveal" style={{ ["--d" as string]: "200ms" }}>
-              <div className="stat-num green">13 May 2027</div>
-              <p>DPDP Act deadline for gaming, social and e-commerce platforms to implement verifiable age and parental-consent checks without creating a new data liability.</p>
+            <article className="stat reveal" style={{ ["--d" as string]: "180ms" }}>
+              <span className="idx">DPDP deadline</span>
+              <div className="big g">13.05.27</div>
+              <p>Platforms must run verifiable age and parental-consent checks without creating a new data liability.</p>
               <cite>Source: DPDP Rules, notified Nov 2025</cite>
             </article>
           </div>
         </div>
       </section>
 
-      <div className="container"><div className="section-divider" /></div>
-
-      {/* ── How it works ─────────────────────────────────────────────── */}
-      <section className="section" id="how">
+      {/* ── 02 The difference ──────────────────────────────────────── */}
+      <section className="section" id="difference" style={{ paddingTop: 0 }}>
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow reveal">How it works</span>
-            <h2 className="h-section reveal">
-              Real cryptography, <span className="serif">not a mock.</span>
-            </h2>
+            <span className="kicker reveal"><span className="num">02</span> The difference</span>
+            <h2 className="h-section reveal">Same check. <span className="serif">Nothing</span> handed over.</h2>
+            <p className="lede reveal">Flip the card. That&apos;s the whole idea.</p>
+          </div>
+          <div className="reveal"><IdCompare /></div>
+        </div>
+      </section>
+
+      {/* ── 03 How it works ────────────────────────────────────────── */}
+      <section className="section" id="how" style={{ paddingTop: 0 }}>
+        <div className="container">
+          <div className="section-head">
+            <span className="kicker reveal"><span className="num">03</span> How it works</span>
+            <h2 className="h-section reveal">Real cryptography, <span className="serif">not a mock.</span></h2>
             <p className="lede reveal">
-              Every layer verifies genuine cryptography. The backend&apos;s Python Groth16 verifier is cross-checked against
-              snarkjs, and the JS and Python encoders are proven byte-identical, so a proof built in the browser verifies on
-              the server.
+              The backend&apos;s Python Groth16 verifier is cross-checked against snarkjs, and the JS and Python encoders
+              are byte-identical, so a proof built in your browser verifies on the server.
             </p>
           </div>
-          <div className="reveal"><Pipeline /></div>
-
-          <div className="bento" style={{ marginTop: 16 }}>
-            <article className="card spot span-3 wide-m reveal">
-              <div className="ico saffron"><Lock /></div>
-              <h3>Constrain, don&apos;t report</h3>
-              <p>Circuits assert <code className="code-chip">is_valid === 1</code> instead of outputting a flag, so a minor cannot generate an &ldquo;age ≥ 18&rdquo; proof at all. &ldquo;The proof verifies&rdquo; and &ldquo;the claim is true&rdquo; are the same statement.</p>
+          <Story />
+          <div className="principles">
+            <article className="principle reveal">
+              <div className="ic"><Lock /></div>
+              <h4>Constrain, don&apos;t report</h4>
+              <p>Circuits assert <code>is_valid === 1</code>. &ldquo;The proof verifies&rdquo; and &ldquo;the claim is true&rdquo; are the same statement.</p>
             </article>
-            <article className="card spot span-3 reveal" style={{ ["--d" as string]: "80ms" }}>
-              <div className="ico chakra"><Shield /></div>
-              <h3>Two-gate verification</h3>
-              <p>A cryptographically valid proof can still answer the wrong question. The backend checks the pairing <em>and</em> that the public signals match what the verifier actually asked.</p>
+            <article className="principle reveal" style={{ ["--d" as string]: "90ms" }}>
+              <div className="ic"><Shield /></div>
+              <h4>Two-gate verification</h4>
+              <p>A valid proof can still answer the wrong question. The server checks both the maths and what was asked.</p>
             </article>
-            <article className="card spot span-2 reveal">
-              <div className="ico green"><Repeat /></div>
-              <h3>Replay-proof by design</h3>
-              <p>A nullifier, <code className="code-chip">Poseidon(secret, verifier_id, expiry)</code>, blocks replay per verifier and makes cross-verifier tracking of a citizen impossible.</p>
-            </article>
-            <article className="card spot span-2 reveal" style={{ ["--d" as string]: "80ms" }}>
-              <div className="ico saffron"><Cpu /></div>
-              <h3>Proven on your device</h3>
-              <p>The witness, the secret and the XML live only in your browser&apos;s memory. Only the proof crosses the network.</p>
-            </article>
-            <article className="card spot span-2 reveal" style={{ ["--d" as string]: "160ms" }}>
-              <div className="ico chakra"><Layers /></div>
-              <h3>One secret, many claims</h3>
-              <p>Every claim is bound to the same private secret: provably about one person, without exposing who that person is.</p>
+            <article className="principle reveal" style={{ ["--d" as string]: "180ms" }}>
+              <div className="ic"><Repeat /></div>
+              <h4>Replay-proof, unlinkable</h4>
+              <p>Each verifier sees a different nullifier, so a proof can&apos;t be reused and you can&apos;t be tracked across services.</p>
             </article>
           </div>
         </div>
       </section>
 
-      {/* ── Claims ───────────────────────────────────────────────────── */}
+      {/* ── 04 Claims ──────────────────────────────────────────────── */}
       <section className="section" id="claims" style={{ paddingTop: 0 }}>
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow reveal">What can be proven</span>
-            <h2 className="h-section reveal">
-              Five claim types. <span className="serif">One private secret.</span>
-            </h2>
-            <p className="lede reveal">
-              The selling point is how short the &ldquo;verifier learns&rdquo; list is.
-            </p>
+            <span className="kicker reveal"><span className="num">04</span> What you can prove</span>
+            <h2 className="h-section reveal">Five claims. <span className="serif">One secret.</span></h2>
+            <p className="lede reveal">Every claim is bound to the same private secret: provably about one person, without saying who.</p>
           </div>
-          <div className="claims">
-            {CLAIM_TYPES.map((c, i) => (
-              <article className="card spot claim-card reveal" key={c.code} style={{ ["--d" as string]: `${(i % 3) * 80}ms` }}>
+          <div className="rows">
+            {CLAIMS.map((c, i) => (
+              <div className="row reveal" key={c.code}>
+                <span className="n">{String(i + 1).padStart(2, "0")}</span>
                 <div>
+                  <h3>{c.title}</h3>
                   <code>{c.code}</code>
-                  <h3 style={{ marginTop: 10 }}>{c.title}</h3>
                 </div>
                 <div>
-                  <div className="tag-label">Verifier learns</div>
-                  <div className="tags">{c.learns.map((l) => <span className="tag learn" key={l}>{l}</span>)}</div>
+                  <div className="lbl">Verifier learns</div>
+                  <div className="pills">{c.yes.map((y) => <span className="pill yes" key={y}>{y}</span>)}</div>
                 </div>
                 <div>
-                  <div className="tag-label">Stays private</div>
-                  <div className="tags">{c.hidden.map((h) => <span className="tag hide" key={h}>{h}</span>)}</div>
+                  <div className="lbl">Stays with you</div>
+                  <div className="pills">{c.no.map((n) => <span className="pill no" key={n}>{n}</span>)}</div>
                 </div>
-                {c.note && <div className="tag-label" style={{ margin: 0, color: "var(--saffron-ink)" }}>↳ {c.note}</div>}
-              </article>
+              </div>
             ))}
-            <NextLink href="/prove" className="card spot claim-card reveal" style={{ ["--d" as string]: "160ms", alignContent: "center", justifyItems: "start", borderStyle: "dashed" }}>
-              <div className="ico saffron"><Sparkle /></div>
-              <h3>Try one now</h3>
-              <p style={{ margin: 0, color: "var(--muted)" }}>Generate a real proof in your browser with a synthetic test citizen. Nothing is uploaded.</p>
-              <span className="btn btn-sm">Open the demo <Arrow className="arrow" /></span>
-            </NextLink>
+          </div>
+          <div className="cta-row reveal" style={{ marginTop: 36 }}>
+            <NextLink href="/prove" className="btn btn-ink">Try it with a test citizen <Arrow className="arrow" /></NextLink>
           </div>
         </div>
       </section>
 
-      {/* ── Comparison ───────────────────────────────────────────────── */}
+      {/* ── 05 Landscape ───────────────────────────────────────────── */}
       <section className="section" id="compare" style={{ paddingTop: 0 }}>
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow reveal">Where this stands</span>
-            <h2 className="h-section reveal">
-              Selective disclosure <span className="serif">vs. true zero-knowledge.</span>
-            </h2>
+            <span className="kicker reveal"><span className="num">05</span> Where this stands</span>
+            <h2 className="h-section reveal">Fewer fields <span className="serif">isn&apos;t</span> zero-knowledge.</h2>
             <p className="lede reveal">
-              Most &ldquo;privacy-preserving&rdquo; Aadhaar tools share fewer fields but still reveal the real value of
-              whatever is shared. True zero-knowledge reveals only the boolean answer, never the value underneath. That
-              is the gap this project targets.
+              Selective disclosure still reveals the real value of whatever it shares. True ZK reveals only the yes/no
+              answer, never the value underneath.
             </p>
           </div>
-          <div className="table-wrap reveal">
-            <div className="table-scroll">
-              <table className="cmp">
-                <thead>
-                  <tr><th scope="col">System</th><th scope="col">Live today?</th><th scope="col">Disclosure model</th></tr>
-                </thead>
+          <div className="matrix reveal">
+            <div className="matrix-scroll">
+              <table>
+                <thead><tr><th scope="col">System</th><th scope="col">Live today?</th><th scope="col">Disclosure model</th></tr></thead>
                 <tbody>
                   {COMPARE.map((r) => (
                     <tr key={r.sys} className={r.us ? "us" : undefined}>
                       <td>{r.sys}</td>
-                      <td><span className={`status ${r.live[0]}`}>{r.live[1]}</span></td>
-                      <td><span className={`status ${r.zk[0]}`}>{r.zk[1]}</span></td>
+                      <td><span className={`dot ${r.live[0]}`}>{r.live[1]}</span></td>
+                      <td><span className={`dot ${r.model[0]}`}>{r.model[1]}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -270,68 +191,49 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Architecture ─────────────────────────────────────────────── */}
+      {/* ── 06 Architecture ────────────────────────────────────────── */}
       <section className="section" id="architecture" style={{ paddingTop: 0 }}>
         <div className="container">
           <div className="section-head">
-            <span className="eyebrow reveal">Under the hood</span>
+            <span className="kicker reveal"><span className="num">06</span> Open source</span>
             <h2 className="h-section reveal">What&apos;s <span className="serif">in the box.</span></h2>
+            <p className="lede reveal">Every layer is in one repository, MIT-licensed, with tests that verify real proofs.</p>
           </div>
-          <div className="repo">
+          <div className="tiles">
             {REPO.map((r, i) => (
-              <a
-                key={r.path}
-                href={`${REPO_URL}/tree/main/${r.path}`}
-                target="_blank"
-                rel="noreferrer"
-                className="card spot reveal"
-                style={{ ["--d" as string]: `${i * 70}ms` }}
-              >
+              <a key={r.path} href={`${REPO_URL}/tree/main/${r.path}`} target="_blank" rel="noreferrer" className="tile reveal" style={{ ["--d" as string]: `${i * 60}ms` }}>
+                <ArrowUpRight className="go" />
                 <span className="path">{r.path}</span>
                 <h4>{r.title}</h4>
                 <p>{r.body}</p>
               </a>
             ))}
           </div>
-          <div className="bento" style={{ marginTop: 12 }}>
-            <div className="card span-3 reveal" style={{ display: "flex", gap: 16, alignItems: "center" }}>
-              <div className="ico green"><Cpu /></div>
-              <div><b>Citizen&apos;s device</b><p style={{ marginTop: 2 }}>XML parsing, secret derivation, witness and Groth16 proving.</p></div>
-            </div>
-            <div className="card span-3 reveal" style={{ display: "flex", gap: 16, alignItems: "center", ["--d" as string]: "80ms" }}>
-              <div className="ico chakra"><Server /></div>
-              <div><b>Verifier&apos;s server</b><p style={{ marginTop: 2 }}>Pairing check, semantic gate, nullifier registry, audit chain.</p></div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────────── */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <div className="container">
-          <div className="cta reveal">
-            <Chakra className="chakra-wheel" />
-            <h2>Sovereign <span className="serif">by design.</span></h2>
-            <p className="lede">
-              No dependency on a foreign wallet, no server that ever sees your Aadhaar XML, and no reason left to hand over
-              more than a single true-or-false answer.
-            </p>
-            <div className="hero-cta">
-              <NextLink href="/prove" className="btn btn-primary">Try the citizen demo <Arrow className="arrow" /></NextLink>
-              <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn"><Github /> Explore the repository</a>
-            </div>
+      {/* ── Final CTA ──────────────────────────────────────────────── */}
+      <section className="container-wide" style={{ paddingBottom: 30 }}>
+        <div className="stage final reveal">
+          <Chakra className="wheel" />
+          <h2>Sovereign <span className="serif">by design.</span></h2>
+          <p className="lede">
+            No foreign wallet, no server that ever sees your Aadhaar XML, and no reason left to hand over more than a
+            single true-or-false answer.
+          </p>
+          <div className="cta-row">
+            <NextLink href="/prove" className="btn btn-saffron">Generate a proof <Arrow className="arrow" /></NextLink>
+            <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn btn-ghost-light"><Github /> View on GitHub</a>
           </div>
-          <div className="disclaimer reveal">
+        </div>
+        <div className="container">
+          <div className="note reveal">
             <Info />
             <div>
-              <b>Prototype status.</b> This is an active hackathon/research prototype, not a production system. The
-              zero-knowledge layer is real, tested cryptography end to end. The trusted setup is currently single-party
-              (not production-grade), and the issuer-credential model verifies a registered issuer&apos;s signature rather than
-              UIDAI&apos;s signature directly. See{" "}
-              <a href={`${REPO_URL}/blob/main/docs/UIDAI_INTEGRATION.md`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-                docs/UIDAI_INTEGRATION.md
-              </a>{" "}
-              for the exact status.
+              <b>Prototype status.</b> This is a research prototype, not a production system. The zero-knowledge layer is
+              real, tested cryptography. The trusted setup is single-party, and the issuer model verifies a registered
+              issuer&apos;s signature rather than UIDAI&apos;s directly. See{" "}
+              <a href={`${REPO_URL}/blob/main/docs/UIDAI_INTEGRATION.md`} target="_blank" rel="noreferrer">UIDAI integration</a> for details.
             </div>
           </div>
         </div>

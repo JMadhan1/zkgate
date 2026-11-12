@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
+import { Arrow, Check, Info, Lock, Shield, X } from "@/components/icons";
 
 // In production the API must be configured explicitly (and be https, which
 // proxy.ts adds to the CSP); localhost is only a development default.
@@ -51,7 +52,9 @@ export default function VerifierHome() {
             proof_bundle: {
               proof: bundle.proof,
               public_signals: bundle.publicSignals || bundle.public_signals,
-              claim_type: bundle.claimType || bundle.claim_type,
+              // The verifier decides what it asked for; never let the pasted
+              // bundle's own label choose the claim being checked.
+              claim_type: ask.id,
               generated_at: bundle.generatedAt || bundle.generated_at || Math.floor(Date.now() / 1000),
               demo: bundle.demo ?? true,
             },
@@ -78,82 +81,116 @@ export default function VerifierHome() {
     expiry: Math.floor(Date.now() / 1000) + 300,
   };
 
+  const errMsg = (r: any): string | null =>
+    !r ? null : typeof r.error === "string" ? r.error : r.error?.message ?? null;
+
   return (
-    <main className="container">
-      <section className="hero">
-        <h1>Verify a citizen — without collecting their data</h1>
-        <p>
-          Request a proof of exactly the fact you need. The citizen&apos;s device
-          returns a proof; you learn only whether the claim holds. No Aadhaar
-          number, no date of birth, no address ever reaches your systems — so there
-          is nothing for you to secure, breach, or be liable for.
-        </p>
-      </section>
-
-      <div className="card">
-        <h2><span className="step-badge">1</span> Choose what to request</h2>
-        <label>Claim to request from the citizen</label>
-        <select value={askId} onChange={(e) => { setAskId(e.target.value); setResult(null); }}>
-          {ASKS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-        </select>
-        <p className="sub" style={{ marginTop: 12 }}>
-          Hand this request to the citizen (in production: as a QR code or deep
-          link into their ZKGate wallet).
-        </p>
-        <textarea readOnly value={JSON.stringify(requestPayload, null, 2)} style={{ minHeight: 130 }} />
-      </div>
-
-      <div className="card">
-        <h2><span className="step-badge">2</span> Verify the returned proof</h2>
-        <p className="sub">
-          Paste the proof bundle the citizen produced (the citizen portal&apos;s
-          &quot;Download proof&quot; button gives you exactly this).
-        </p>
-        <textarea
-          value={pasted}
-          onChange={(e) => setPasted(e.target.value)}
-          placeholder='{ "proof": {...}, "publicSignals": [...], "claimType": "age_above_18" }'
-        />
-        <div className="row" style={{ marginTop: 12 }}>
-          <button className="btn green" onClick={onVerify} disabled={busy || !pasted.trim()}>
-            {busy ? <><span className="spinner" /> Verifying…</> : "Verify proof"}
-          </button>
-        </div>
-      </div>
-
-      {result && (
-        <div className="card">
-          <h2>Result</h2>
-          <div className="row" style={{ marginBottom: 12 }}>
-            {result.valid
-              ? <span className="pill ok">✓ CLAIM VERIFIED</span>
-              : <span className="pill bad">✕ {result.fresh === false ? "REPLAY REJECTED" : "NOT VERIFIED"}</span>}
-            {result.trust_level && <span className="pill demo">{result.trust_level}</span>}
+    <div className="app">
+      <div className="container-wide">
+        <header className="stage app-hero">
+          <div>
+            <span className="kicker"><span className="num">Verifier</span> Demo Bank · id 99999</span>
+            <h1>Verify a citizen. <span className="serif" style={{ color: "var(--saffron)" }}>Collect nothing.</span></h1>
+            <p className="lede">
+              Ask for exactly the fact you need. The citizen&apos;s device returns a proof, and you learn{" "}
+              <b>only whether the claim holds</b>. No Aadhaar number, DOB or address reaches your systems, so there&apos;s
+              nothing to secure, breach or be liable for.
+            </p>
           </div>
-          <div className="kv">
-            {Object.entries(result.claims || {}).map(([k, v]) => (
-              <Fragment key={k}>
-                <div className="k">{k}</div>
-                <div className="v">{String(v)}</div>
-              </Fragment>
+          <span className="privacy"><Lock /> Zero personal data received</span>
+        </header>
+      </div>
+
+      <div className="container" style={{ maxWidth: 980 }}>
+        <section className="panel" aria-labelledby="r1">
+          <div className="panel-head">
+            <div>
+              <h2 id="r1">What do you need to know?</h2>
+              <p>Pick the claim to request. Hand the request to the citizen (in production, as a QR code or a deep link).</p>
+            </div>
+            <span className="tag-step">01</span>
+          </div>
+          <div className="claim-grid" role="radiogroup" aria-label="Claim to request">
+            {ASKS.map((a) => (
+              <button key={a.id} role="radio" aria-checked={askId === a.id} className="claim-opt"
+                onClick={() => { setAskId(a.id); setResult(null); setError(null); }}>
+                <span className="radio" aria-hidden />
+                <span className="t">{a.label}</span>
+                <span className="m">{a.id}</span>
+              </button>
             ))}
-            {result.nullifier && (<Fragment><div className="k">Nullifier</div><div className="v mono" style={{ fontSize: 12 }}>{result.nullifier}</div></Fragment>)}
-            {result.error && (<Fragment><div className="k">Reason</div><div className="v" style={{ color: "var(--bad)" }}>{result.error}</div></Fragment>)}
           </div>
-          <p className="notice" style={{ marginTop: 14 }}>
-            Notice what you did <em>not</em> receive: no name, no DOB, no address, no
-            Aadhaar number. Only the boolean claim and an anonymous nullifier you can
-            use to reject a replay.
-          </p>
-        </div>
-      )}
+          <div className="req">
+            <div>
+              <small>Proof request</small>
+              <pre>{JSON.stringify(requestPayload, null, 2)}</pre>
+            </div>
+          </div>
+        </section>
 
-      {error && (
-        <div className="card" style={{ borderColor: "var(--bad)" }}>
-          <strong style={{ color: "var(--bad)" }}>Error</strong>
-          <p style={{ marginBottom: 0 }}>{error}</p>
-        </div>
-      )}
-    </main>
+        <section className="panel" aria-labelledby="r2">
+          <div className="panel-head">
+            <div>
+              <h2 id="r2">Verify the returned proof</h2>
+              <p>Paste the proof bundle the citizen produced. The citizen portal&apos;s &ldquo;Download proof&rdquo; gives you exactly this.</p>
+            </div>
+            <span className="tag-step">02</span>
+          </div>
+          <textarea
+            className="xml"
+            value={pasted}
+            onChange={(e) => setPasted(e.target.value)}
+            placeholder='{ "proof": {...}, "publicSignals": [...], "claimType": "age_above_18" }'
+            aria-label="Proof bundle JSON"
+            spellCheck={false}
+          />
+          <div className="actions">
+            <button className="btn btn-green" onClick={onVerify} disabled={busy || !pasted.trim()}>
+              {busy ? <><span className="spinner" /> Verifying…</> : <><Shield /> Verify proof</>}
+            </button>
+          </div>
+          {error && (
+            <div className="callout error fade-in" role="alert">
+              <X /><div><b>Couldn&apos;t verify</b><p>{error}</p></div><span />
+            </div>
+          )}
+        </section>
+
+        {result && (
+          <section className="panel fade-in" aria-live="polite" aria-labelledby="r3">
+            <h2 id="r3" className="sr-only">Result</h2>
+            <div className={`verdict-banner ${result.valid ? "ok" : "bad"}`}>
+              <span className="vb-ic">{result.valid ? <Check /> : <X />}</span>
+              <div>
+                <h3>{result.valid ? "Claim verified" : result.fresh === false ? "Replay rejected" : "Not verified"}</h3>
+                <p>
+                  {result.valid
+                    ? "The proof is mathematically valid and answers exactly what you asked."
+                    : errMsg(result) ?? "The proof didn't pass verification."}
+                </p>
+              </div>
+            </div>
+            <dl className="kv2">
+              {Object.entries(result.claims || {}).map(([k, v]) => (
+                <div key={k} style={{ display: "contents" }}><dt>{k.replace(/_/g, " ")}</dt><dd>{k === "expires_at" && typeof v === "number" ? new Date(v * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : typeof v === "boolean" ? (v ? "Yes ✓" : "No") : String(v)}</dd></div>
+              ))}
+              {result.trust_level && (<><dt>Trust level</dt><dd><span className="pill">{result.trust_level}</span></dd></>)}
+              {result.nullifier && (<><dt>Nullifier</dt><dd className="mono" style={{ fontSize: 12.5, fontWeight: 500 }}>{result.nullifier}</dd></>)}
+            </dl>
+            <div className="callout info" style={{ marginTop: 20 }}>
+              <Info />
+              <div>
+                <b>What you did not receive</b>
+                <div className="pills" style={{ marginTop: 10 }}>
+                  {["Name", "Date of birth", "Address", "Aadhaar number", "Photo"].map((x) => <span className="pill no" key={x}>{x}</span>)}
+                </div>
+              </div>
+              <span />
+            </div>
+          </section>
+        )}
+        <p className="hint"><Arrow /> <span>Demo mode: calls go to the verifier API configured in <code>NEXT_PUBLIC_API_URL</code>.</span></p>
+      </div>
+    </div>
   );
 }

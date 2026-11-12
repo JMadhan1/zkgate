@@ -5,7 +5,7 @@ import { CLAIMS, claimById } from "@/lib/claims";
 import type { ParsedAadhaar, ProofResult } from "@/lib/prove";
 import { REPO_URL } from "@/lib/site";
 import {
-  Alert, Arrow, Calendar, Check, Copy, Download, Eye, EyeOff, File, Hash, Info, Lock, Pin, Repeat, Shield, Upload, User, X,
+  Alert, Arrow, Calendar, Check, Copy, Download, Eye, EyeOff, File as FileIcon, Hash, Info, Lock, Pin, Repeat, Shield, Upload, User, X,
 } from "@/components/icons";
 
 // Verifier API. In local dev it defaults to the FastAPI backend; in production
@@ -54,7 +54,7 @@ export default function ProvePage() {
   const [verifyResult, setVerifyResult] = useState<any>(null);
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<Problem | null>(null);
-  const resultRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLElement>(null);
 
   const claim = claimById(claimId)!;
   const step = proof ? 3 : parsed ? 2 : 1;
@@ -124,10 +124,10 @@ export default function ProvePage() {
           title: "Proving keys aren't published on this deployment yet",
           body: (
             <>
-              The circuit artifacts (<code className="code-chip">{claim.circuit}.wasm</code> and{" "}
-              <code className="code-chip">.zkey</code>) are large build outputs that aren&apos;t in the repository. Run{" "}
-              <code className="code-chip">npm run build:circuits</code> and copy them into{" "}
-              <code className="code-chip">frontend/public/circuits/</code> to enable live proving. Parsing and the claim
+              The circuit artifacts (<code>{claim.circuit}.wasm</code> and{" "}
+              <code>.zkey</code>) are large build outputs that aren&apos;t in the repository. Run{" "}
+              <code>npm run build:circuits</code> and copy them into{" "}
+              <code>frontend/public/circuits/</code> to enable live proving. Parsing and the claim
               preview above already run fully on your device.
             </>
           ),
@@ -176,8 +176,8 @@ export default function ProvePage() {
         title: "No verifier API is connected to this deployment",
         body: (
           <>
-            Set <code className="code-chip">NEXT_PUBLIC_API_URL</code> to a running instance of the FastAPI backend
-            (<code className="code-chip">backend/</code>) to verify proofs live. You can still download the proof and
+            Set <code>NEXT_PUBLIC_API_URL</code> to a running instance of the FastAPI backend
+            (<code>backend/</code>) to verify proofs live. You can still download the proof and
             verify it yourself.
           </>
         ),
@@ -223,275 +223,295 @@ export default function ProvePage() {
   const totalFields = claim.reveals.length + claim.hidden.length;
 
   return (
-    <div className="container app">
-      <header className="app-head">
-        <div>
-          <span className="eyebrow">Citizen portal · demo</span>
-          <h1>
-            Prove who you are. <span className="serif tri-text">Reveal nothing.</span>
-          </h1>
-          <p className="lede">
-            Load an Aadhaar offline eKYC XML, choose what to prove, and generate a cryptographic proof{" "}
-            <strong>on this device</strong>. The XML never leaves your browser. Only the proof does.
-          </p>
-        </div>
-        <span className="privacy-pill"><Lock /> No upload endpoint · 100% client-side</span>
-      </header>
-
-      <div className="app-grid">
-        {/* ── Rail ─────────────────────────────────────────────────── */}
-        <aside className="rail" aria-label="Progress">
-          <ol className="steps">
-            {[
-              { n: 1, t: "Load your XML", d: "Parsed locally" },
-              { n: 2, t: "Choose a claim", d: "Generate the proof" },
-              { n: 3, t: "Share the proof", d: "Verify or download" },
-            ].map((s) => {
-              const state = step > s.n ? "done" : step === s.n ? "active" : "todo";
-              return (
-                <li key={s.n} className="step" data-state={state} aria-current={state === "active" ? "step" : undefined}>
-                  <span className="dot">{state === "done" ? <Check /> : s.n}</span>
-                  <span><b>{s.t}</b><small>{s.d}</small></span>
-                </li>
-              );
-            })}
-          </ol>
-          <div className="card meter">
-            <div className="row"><span>Disclosure for this claim</span><b>{claim.reveals.length}/{totalFields}</b></div>
-            <div className="meter-bar" aria-hidden>
-              <i className="rev" style={{ width: `${(claim.reveals.length / totalFields) * 100}%` }} />
-              <i className="hid" style={{ width: `${(claim.hidden.length / totalFields) * 100}%` }} />
-            </div>
-            <div className="meter-legend">
-              <span style={{ ["--c" as string]: "var(--saffron)" }}>Verifier learns</span>
-              <span style={{ ["--c" as string]: "var(--green)" }}>Stays private</span>
-            </div>
-          </div>
-        </aside>
-
-        <div>
-          {/* ── Step 1 ───────────────────────────────────────────────── */}
-          <section className="panel" aria-labelledby="s1">
-            <div className="panel-head">
-              <div>
-                <h2 id="s1">Your Aadhaar XML</h2>
-                <p>Drop your UIDAI offline eKYC file, paste its contents, or use a synthetic test citizen.</p>
-              </div>
-              <span className="step-tag">Step 01</span>
-            </div>
-
-            <label
-              className="drop"
-              data-over={dragOver}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                const f = e.dataTransfer.files?.[0];
-                if (f) readFile(f);
-              }}
-            >
-              <input
-                type="file"
-                accept=".xml,text/xml,application/xml"
-                aria-label="Choose an Aadhaar offline eKYC XML file"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); }}
-              />
-              {fileName ? <File /> : <Upload />}
-              <b>{fileName ?? "Drop your eKYC .xml here"}</b>
-              <span>{fileName ? "Loaded into memory, not uploaded" : "or click to browse · read locally, never uploaded"}</span>
-            </label>
-
-            <div className="or">or paste</div>
-
-            <textarea
-              className="xml"
-              value={xml}
-              onChange={(e) => { setXml(e.target.value); setFileName(null); }}
-              placeholder='<?xml version="1.0"?><OfflinePaperlessKyc …>'
-              aria-label="Aadhaar XML contents"
-              spellCheck={false}
-            />
-
-            <div className="actions">
-              <button className="btn btn-primary" onClick={() => onParse()} disabled={!xml.trim()}>
-                Parse on this device <Arrow className="arrow" />
-              </button>
-              <button className="btn" onClick={loadSample}>
-                <User /> Use test citizen (28, Andhra Pradesh)
-              </button>
-            </div>
-            <p className="hint">
-              <Shield />
-              <span>Parsing runs entirely in your browser. Open your network tab: no request is made in this step.</span>
+    <div className="app">
+      <div className="container-wide">
+        <header className="stage app-hero">
+          <div>
+            <span className="kicker"><span className="num">Demo</span> Citizen portal</span>
+            <h1>
+              Prove it. <span className="serif" style={{ color: "var(--saffron)" }}>Keep the rest.</span>
+            </h1>
+            <p className="lede">
+              Load an Aadhaar offline eKYC XML, pick one fact to prove, and generate a zero-knowledge proof{" "}
+              <b>on this device</b>. The XML never leaves your browser.
             </p>
+          </div>
+          <span className="privacy"><Lock /> No upload endpoint · 100% client-side</span>
+        </header>
+      </div>
 
-            {problem && !parsed && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
-
-            {parsed && (
-              <div className="fade-in" style={{ marginTop: 22 }}>
-                <div className="panel-head" style={{ marginBottom: 12 }}>
-                  <div>
-                    <h2 style={{ fontSize: 17 }}>What we read</h2>
-                    <p>Held in memory on this device. None of it goes into the proof.</p>
-                  </div>
-                  <button className="btn btn-sm btn-ghost" onClick={() => setMasked((m) => !m)} aria-pressed={masked}>
-                    {masked ? <Eye /> : <EyeOff />} {masked ? "Show" : "Hide"}
-                  </button>
-                </div>
-                <div className="fields">
-                  <Field icon={<User />} k="Name" v={parsed.raw.name} masked={masked} />
-                  <Field icon={<Calendar />} k="Date of birth" v={parsed.raw.dob} masked={masked} />
-                  <Field icon={<Pin />} k="State" v={`${parsed.raw.stateName} · code ${parsed.fields.state_code}`} masked={masked} />
-                  <Field icon={<Hash />} k="District / PIN" v={`${parsed.raw.district}, ${parsed.raw.pincode}`} masked={masked} />
-                </div>
+      <div className="container">
+        <div className="app-grid">
+          {/* ── Rail ─────────────────────────────────────────────── */}
+          <aside className="rail" aria-label="Progress">
+            <ol className="steps">
+              {[
+                { n: 1, t: "Load XML", d: "Parsed on this device" },
+                { n: 2, t: "Pick a claim", d: "Generate the proof" },
+                { n: 3, t: "Share proof", d: "Verify or download" },
+              ].map((s) => {
+                const state = step > s.n ? "done" : step === s.n ? "active" : "todo";
+                return (
+                  <li key={s.n} className="step" data-state={state} aria-current={state === "active" ? "step" : undefined}>
+                    <span className="dot2">{state === "done" ? <Check /> : s.n}</span>
+                    <span><b>{s.t}</b><small>{s.d}</small></span>
+                  </li>
+                );
+              })}
+            </ol>
+            <div className="meter">
+              <div className="top"><span>Verifier learns</span><b>{claim.reveals.length}<span style={{ fontSize: 15, color: "var(--faint)" }}> / {totalFields}</span></b></div>
+              <div className="meter-bar" aria-hidden>
+                {Array.from({ length: totalFields }, (_, i) => <i key={i} className={i < claim.reveals.length ? "rev" : ""} />)}
               </div>
-            )}
-          </section>
-
-          {/* ── Step 2 ───────────────────────────────────────────────── */}
-          <section className="panel" aria-labelledby="s2" data-dim={!parsed}>
-            <div className="panel-head">
-              <div>
-                <h2 id="s2">What do you want to prove?</h2>
-                <p>Each claim is its own circuit. The verifier learns the answer and nothing underneath it.</p>
-              </div>
-              <span className="step-tag">Step 02</span>
-            </div>
-
-            <div className="claim-grid" role="radiogroup" aria-label="Claim to prove">
-              {CLAIMS.map((c) => (
-                <button
-                  key={c.id}
-                  role="radio"
-                  aria-checked={claimId === c.id}
-                  className="claim-opt"
-                  onClick={() => pickClaim(c.id)}
-                  disabled={proving}
-                >
-                  <span className="radio" aria-hidden />
-                  <span className="t">{c.label}</span>
-                  <span className="d">{c.blurb}</span>
-                  <span className="m">{c.circuit}.circom</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="disclose">
-              <div className="learn">
-                <h4><Eye /> The verifier learns</h4>
-                <div className="tags">{claim.reveals.map((r) => <span className="tag learn" key={r}>{r}</span>)}</div>
-              </div>
-              <div className="keep">
-                <h4><Lock /> Stays on your device</h4>
-                <div className="tags">{claim.hidden.map((h) => <span className="tag hide" key={h}>{h}</span>)}</div>
+              <div className="legend">
+                <span style={{ ["--c" as string]: "var(--saffron)" }}>Shared</span>
+                <span style={{ ["--c" as string]: "var(--green)" }}>Stays with you</span>
               </div>
             </div>
+          </aside>
 
-            <div className="actions">
-              <button className="btn btn-primary" onClick={onProve} disabled={!parsed || proving}>
-                {proving ? <><span className="spinner" /> Generating proof…</> : <>Generate zero-knowledge proof <Arrow className="arrow" /></>}
-              </button>
-              {!parsed && <span style={{ fontSize: 13.5, color: "var(--faint)" }}>Load an XML first</span>}
-            </div>
-
-            {proving && (
-              <div className="progress-steps" aria-live="polite">
-                {([
-                  ["artifacts", "Fetching circuit artifacts"],
-                  ["witness", "Signing demo credential & building witness"],
-                  ["prove", "Running the Groth16 prover"],
-                ] as const).map(([key, label], idx, arr) => {
-                  const cur = arr.findIndex(([k]) => k === stage);
-                  const st = idx < cur ? "done" : idx === cur ? "active" : "todo";
-                  return (
-                    <div className="pstep" data-state={st} key={key}>
-                      {st === "done" ? <Check /> : st === "active" ? <span className="spinner" /> : <span className="dotty" />}
-                      {label}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {problem && parsed && !proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
-          </section>
-
-          {/* ── Step 3 ───────────────────────────────────────────────── */}
-          {proof && (
-            <section className="panel fade-in" aria-labelledby="s3" ref={resultRef}>
+          <div>
+            {/* ── Step 1 ───────────────────────────────────────────── */}
+            <section className="panel" aria-labelledby="s1">
               <div className="panel-head">
                 <div>
-                  <h2 id="s3">Your proof is ready</h2>
-                  <p>
-                    {proofBytes} bytes{elapsed ? ` · generated in ${(elapsed / 1000).toFixed(1)}s` : ""}. Look through it:
-                    there&apos;s no name, date of birth or address anywhere in it.
-                  </p>
+                  <h2 id="s1">Your eKYC XML</h2>
+                  <p>Drop the file from your UIDAI offline eKYC download, paste it, or use a synthetic test citizen.</p>
                 </div>
-                <span className="step-tag">Step 03</span>
+                <span className="tag-step">01</span>
               </div>
 
-              <div className="proof-box">
-                <ProofRow k="Claim" v={proof.claimType} />
-                <ProofRow k="Trust level" v={<span className={`badge ${proof.demo ? "warn" : "ok"}`}>{proof.demo ? "demo" : "attested"}</span>} />
-                <ProofRow k="Nullifier" v={proof.publicSignals[1]} copy={proof.publicSignals[1]} />
-                <ProofRow k="Public signals" v={`[${proof.publicSignals.join(", ")}]`} copy={JSON.stringify(proof.publicSignals)} />
+              <label
+                className="drop"
+                data-over={dragOver}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) readFile(f);
+                }}
+              >
+                <input
+                  type="file"
+                  accept=".xml,text/xml,application/xml"
+                  aria-label="Choose an Aadhaar offline eKYC XML file"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) readFile(f); }}
+                />
+                <span className="ic">{fileName ? <FileIcon /> : <Upload />}</span>
+                <b>{fileName ?? "Drop your eKYC .xml here"}</b>
+                <span>{fileName ? "Loaded into memory, not uploaded" : "or click to browse · read locally, never uploaded"}</span>
+              </label>
+
+              <div className="or">or paste</div>
+
+              <textarea
+                className="xml"
+                value={xml}
+                onChange={(e) => { setXml(e.target.value); setFileName(null); }}
+                placeholder='<?xml version="1.0"?><OfflinePaperlessKyc …>'
+                aria-label="Aadhaar XML contents"
+                spellCheck={false}
+              />
+
+              <div className="actions">
+                <button className="btn btn-ink" onClick={() => onParse()} disabled={!xml.trim()}>
+                  Parse on this device <Arrow className="arrow" />
+                </button>
+                <button className="btn" onClick={loadSample}>
+                  <User /> Use a test citizen
+                </button>
+              </div>
+              <p className="hint">
+                <Shield />
+                <span>Parsing runs entirely in your browser. Open your network tab: nothing is sent in this step.</span>
+              </p>
+
+              {problem && !parsed && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+
+              {parsed && (
+                <div className="fade-in" style={{ marginTop: 24 }}>
+                  <div className="panel-head" style={{ marginBottom: 12 }}>
+                    <div>
+                      <h2 style={{ fontSize: 20 }}>What we read</h2>
+                      <p>Held in memory on this device. None of it goes into the proof.</p>
+                    </div>
+                    <button className="btn btn-sm" onClick={() => setMasked((m) => !m)} aria-pressed={masked}>
+                      {masked ? <Eye /> : <EyeOff />} {masked ? "Show" : "Hide"}
+                    </button>
+                  </div>
+                  <div className="fields">
+                    <Field icon={<User />} k="Name" v={parsed.raw.name} masked={masked} />
+                    <Field icon={<Calendar />} k="Date of birth" v={parsed.raw.dob} masked={masked} />
+                    <Field icon={<Pin />} k="State" v={`${parsed.raw.stateName} · code ${parsed.fields.state_code}`} masked={masked} />
+                    <Field icon={<Hash />} k="District / PIN" v={`${parsed.raw.district}, ${parsed.raw.pincode}`} masked={masked} />
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* ── Step 2 ───────────────────────────────────────────── */}
+            <section className="panel" aria-labelledby="s2" data-dim={!parsed}>
+              <div className="panel-head">
+                <div>
+                  <h2 id="s2">What do you want to prove?</h2>
+                  <p>Each claim is its own circuit. The verifier learns the answer and nothing underneath it.</p>
+                </div>
+                <span className="tag-step">02</span>
+              </div>
+
+              <div className="claim-grid" role="radiogroup" aria-label="Claim to prove">
+                {CLAIMS.map((c) => (
+                  <button
+                    key={c.id}
+                    role="radio"
+                    aria-checked={claimId === c.id}
+                    className="claim-opt"
+                    onClick={() => pickClaim(c.id)}
+                    disabled={proving}
+                  >
+                    <span className="radio" aria-hidden />
+                    <span className="t">{c.label}</span>
+                    <span className="d">{c.blurb}</span>
+                    <span className="m">{c.circuit}.circom</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="disclose">
+                <div className="learn">
+                  <h4><Eye /> The verifier learns</h4>
+                  <div className="pills">{claim.reveals.map((r) => <span className="pill yes" key={r}>{r}</span>)}</div>
+                </div>
+                <div className="keep">
+                  <h4><Lock /> Stays on your device</h4>
+                  <div className="pills">{claim.hidden.map((h) => <span className="pill no" key={h}>{h}</span>)}</div>
+                </div>
               </div>
 
               <div className="actions">
-                <button className="btn btn-green" onClick={onSend} disabled={sending}>
-                  {sending ? <><span className="spinner" /> Verifying…</> : <><Shield /> Send to Demo Bank</>}
+                <button className="btn btn-ink" onClick={onProve} disabled={!parsed || proving}>
+                  {proving ? <><span className="spinner" /> Generating proof…</> : <>Generate zero-knowledge proof <Arrow className="arrow" /></>}
                 </button>
-                <button className="btn" onClick={() => downloadJson(proof)}><Download /> Download proof</button>
+                {!parsed && <span style={{ fontSize: 14, color: "var(--faint)" }}>Load an XML first</span>}
               </div>
 
-              {verifyResult && (
-                <div className={`callout ${verifyResult.valid ? "ok" : "error"} fade-in`}>
-                  {verifyResult.valid ? <Check /> : <X />}
+              {proving && (
+                <div className="progress" aria-live="polite">
+                  {([
+                    ["artifacts", "Fetching circuit artifacts"],
+                    ["witness", "Signing demo credential & building witness"],
+                    ["prove", "Running the Groth16 prover"],
+                  ] as const).map(([key, label], idx, arr) => {
+                    const cur = arr.findIndex(([k]) => k === stage);
+                    const st = idx < cur ? "done" : idx === cur ? "active" : "todo";
+                    return (
+                      <div className="pstep" data-state={st} key={key}>
+                        {st === "done" ? <Check /> : st === "active" ? <span className="spinner" /> : <span className="dotty" />}
+                        {label}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {problem && parsed && !proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+            </section>
+
+            {/* ── Step 3 ───────────────────────────────────────────── */}
+            {proof && (
+              <section className="panel fade-in" aria-labelledby="s3" ref={resultRef}>
+                <div className="panel-head">
                   <div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <h2 id="s3">Your proof is ready</h2>
+                    <p>Look through it: there&apos;s no name, date of birth or address anywhere in it.</p>
+                  </div>
+                  <span className="tag-step">03</span>
+                </div>
+
+                <div className="ticket">
+                  <div className="ticket-main">
+                    <div className="ticket-top">
+                      <span>ZKGATE · GROTH16 PROOF</span>
+                      <span className={`badge ${proof.demo ? "warn" : "ok"}`}>{proof.demo ? "DEMO ISSUER" : "ATTESTED"}</span>
+                    </div>
+                    <h3>{claim.label.replace(/^I am |^I hold |^I live in /, "").replace(/^./, (c) => c.toUpperCase())} <span>✓</span></h3>
+                    <div className="ticket-grid">
+                      <div><small>Size</small><b>{proofBytes} B</b></div>
+                      <div><small>Generated in</small><b>{elapsed ? `${(elapsed / 1000).toFixed(1)}s` : "—"}</b></div>
+                      <div><small>Personal fields</small><b>0</b></div>
+                    </div>
+                    <div className="ticket-null">
+                      <span><small style={{ display: "block", fontSize: 10.5, letterSpacing: "0.08em", marginBottom: 4 }}>NULLIFIER</small>{proof.publicSignals[1]}</span>
+                      <CopyBtn text={proof.publicSignals[1]} label="nullifier" />
+                    </div>
+                  </div>
+                  <div className="ticket-side">
+                    <ProofPrint seed={proof.publicSignals.join("")} />
+                    <small>proof-print · {proof.publicSignals.length} public signals</small>
+                  </div>
+                </div>
+
+                <div className="actions">
+                  <button className="btn btn-green" onClick={onSend} disabled={sending}>
+                    {sending ? <><span className="spinner" /> Verifying…</> : <><Shield /> Send to Demo Bank</>}
+                  </button>
+                  <button className="btn" onClick={() => downloadJson(proof)}><Download /> Download proof</button>
+                  <CopyBtn text={JSON.stringify(proof.publicSignals)} label="public signals" big />
+                </div>
+
+                {verifyResult && (
+                  <div className={`callout ${verifyResult.valid ? "ok" : "error"} fade-in`} role="status">
+                    {verifyResult.valid ? <Check /> : <X />}
+                    <div>
                       <b>
                         {verifyResult.valid
                           ? "Verified by Demo Bank"
                           : verifyResult.fresh === false ? "Replay rejected" : "Verification failed"}
                       </b>
-                      {verifyResult.trust_level && <span className="badge warn">{verifyResult.trust_level}</span>}
+                      {verifyResult.valid && (
+                        <div className="verify-grid">
+                          {Object.entries(verifyResult.claims || {}).map(([k, v]) => (
+                            <Fragment key={k}>
+                              <div className="field"><small>{k.replace(/_/g, " ")}</small><b>{formatClaim(k, v)}</b></div>
+                            </Fragment>
+                          ))}
+                        </div>
+                      )}
+                      {verifyResult.error && <p>{typeof verifyResult.error === "string" ? verifyResult.error : verifyResult.error.message}</p>}
+                      <p style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Repeat width={14} height={14} /> Send the same proof again and it&apos;s refused as a replay: the nullifier is spent.
+                      </p>
                     </div>
-                    <div className="verify-grid">
-                      {Object.entries(verifyResult.claims || {}).map(([k, v]) => (
-                        <Fragment key={k}>
-                          <div className="field"><small>{k}</small><b>{String(v)}</b></div>
-                        </Fragment>
-                      ))}
-                    </div>
-                    {verifyResult.error && <p style={{ color: "var(--danger)" }}>{verifyResult.error}</p>}
-                    <p style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <Repeat width={14} height={14} /> Send the same proof again and the verifier rejects it as a replay,
-                      because the nullifier is spent.
-                    </p>
+                    <span />
                   </div>
-                </div>
-              )}
-              {problem && proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
-            </section>
-          )}
+                )}
+                {problem && proof && <ProblemCallout p={problem} onClose={() => setProblem(null)} />}
+              </section>
+            )}
 
-          <p className="hint" style={{ marginTop: 6 }}>
-            <Info />
-            <span>
-              Demo proofs are signed with a publicly known demo issuer key, so they always report trust level
-              &ldquo;demo&rdquo;. See{" "}
-              <a href={`${REPO_URL}/blob/main/docs/UIDAI_INTEGRATION.md`} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
-                UIDAI integration
-              </a>{" "}
-              for the production path.
-            </span>
-          </p>
+            <p className="hint">
+              <Info />
+              <span>
+                Demo proofs are signed with a publicly known demo issuer key, so they always report trust level
+                &ldquo;demo&rdquo;. See <a href={`${REPO_URL}/blob/main/docs/UIDAI_INTEGRATION.md`} target="_blank" rel="noreferrer">UIDAI integration</a> for the production path.
+              </span>
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function formatClaim(k: string, v: unknown): string {
+  if (k === "expires_at" && typeof v === "number") {
+    return new Date(v * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  }
+  if (typeof v === "boolean") return v ? "Yes ✓" : "No";
+  return String(v);
 }
 
 function Field({ icon, k, v, masked }: { icon: React.ReactNode; k: string; v: string; masked: boolean }) {
@@ -503,23 +523,39 @@ function Field({ icon, k, v, masked }: { icon: React.ReactNode; k: string; v: st
   );
 }
 
-function ProofRow({ k, v, copy }: { k: string; v: React.ReactNode; copy?: string }) {
+function CopyBtn({ text, label, big }: { text: string; label: string; big?: boolean }) {
   const [done, setDone] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setDone(true);
+      window.setTimeout(() => setDone(false), 1400);
+    } catch {}
+  }
+  if (big) {
+    return <button className="btn" onClick={copy} aria-label={`Copy ${label}`}>{done ? <Check /> : <Copy />} {done ? "Copied" : "Copy signals"}</button>;
+  }
+  return <button className="copy" onClick={copy} aria-label={`Copy ${label}`}>{done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}</button>;
+}
+
+/** A 12×12 glyph derived from the proof's public signals: a visual fingerprint. */
+function ProofPrint({ seed }: { seed: string }) {
+  const cells = useMemo(() => {
+    let h = 2166136261;
+    const out: string[] = [];
+    for (let i = 0; i < 144; i++) {
+      h ^= seed.charCodeAt(i % seed.length) + i;
+      h = Math.imul(h, 16777619) >>> 0;
+      const v = h % 10;
+      out.push(v < 4 ? "o" : v < 5 ? "s" : v < 6 ? "g" : "");
+    }
+    // mirror left half to right for a crest-like symmetric print
+    for (let row = 0; row < 12; row++) for (let col = 6; col < 12; col++) out[row * 12 + col] = out[row * 12 + (11 - col)];
+    return out;
+  }, [seed]);
   return (
-    <div className="proof-row">
-      <span className="k">{k}</span>
-      <span className="v">{v}</span>
-      {copy ? (
-        <button
-          className="copy"
-          onClick={async () => {
-            try { await navigator.clipboard.writeText(copy); setDone(true); setTimeout(() => setDone(false), 1400); } catch {}
-          }}
-          aria-label={`Copy ${k}`}
-        >
-          {done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}
-        </button>
-      ) : <span />}
+    <div className="proofprint" aria-hidden>
+      {cells.map((c, i) => <i key={i} className={c} />)}
     </div>
   );
 }
@@ -529,12 +565,10 @@ function ProblemCallout({ p, onClose }: { p: Problem; onClose: () => void }) {
     <div className={`callout ${p.kind} fade-in`} role={p.kind === "error" ? "alert" : "status"}>
       {p.kind === "error" ? <Alert /> : <Info />}
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          <b>{p.title}</b>
-          <button className="copy" onClick={onClose} aria-label="Dismiss"><X /></button>
-        </div>
+        <b>{p.title}</b>
         <p>{p.body}</p>
       </div>
+      <button className="x-btn" onClick={onClose} aria-label="Dismiss"><X /></button>
     </div>
   );
 }

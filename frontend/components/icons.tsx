@@ -12,6 +12,7 @@ const base = {
   "aria-hidden": true,
 };
 
+export const ArrowUpRight = (p: P) => (<svg {...base} {...p}><path d="M7 17L17 7M8 7h9v9" /></svg>);
 export const Arrow = (p: P) => (<svg {...base} {...p}><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
 export const Shield = (p: P) => (<svg {...base} {...p}><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>);
 export const Lock = (p: P) => (<svg {...base} {...p}><rect x="4" y="10" width="16" height="11" rx="2.5" /><path d="M8 10V7a4 4 0 118 0v3" /></svg>);
@@ -54,19 +55,13 @@ export function Chakra(p: P) {
   );
 }
 
-/** Brand mark: a gate (two pillars + lintel) with a chakra-blue core. */
+/** Brand mark: an ink tile with a saffron gate arch and a green "proof" dot. */
 export function BrandMark(p: P) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden {...p}>
-      <defs>
-        <linearGradient id="bm" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FF9933" />
-          <stop offset="1" stopColor="#2fd36b" />
-        </linearGradient>
-      </defs>
-      <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#bm)" />
-      <path d="M9 24V12.5a7 7 0 0114 0V24" fill="none" stroke="#0b0e18" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="16" cy="17.5" r="2.6" fill="#0b0e18" />
+      <rect x="1" y="1" width="30" height="30" rx="9" fill="currentColor" />
+      <path d="M9.5 24V13.5a6.5 6.5 0 0113 0V24" fill="none" stroke="#FF7A1A" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="16" cy="18" r="2.8" fill="#2CC466" />
     </svg>
   );
 }
