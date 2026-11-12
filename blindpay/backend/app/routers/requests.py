@@ -155,6 +155,23 @@ def tally_export(month: str = Query(pattern=r"^20[0-9]{2}-(0[1-9]|1[0-2])$"),
         "Content-Disposition": f'attachment; filename="blindpay-{safe}-{month}.xml"'})
 
 
+@router.get("/audit-pack")
+def audit_pack(month: str = Query(pattern=r"^20[0-9]{2}-(0[1-9]|1[0-2])$"),
+               caller: Caller = Depends(current), db: Session = Depends(get_db)):
+    """The CA Audit Pack for one month: proofs, policy log, verification key. No limits inside."""
+    import json as _json
+
+    from app import proofs
+
+    period = int(month.replace("-", ""))
+    pack = proofs.audit_pack(db, caller.company, period)
+    audit.record(db, caller.company.id, f"member:{caller.member.id}", "audit_pack.exported", f"period:{period}")
+    db.commit()
+    safe = re.sub(r"[^A-Za-z0-9_-]", "", caller.company.name)[:40] or "company"
+    return Response(content=_json.dumps(pack, indent=1), media_type="application/json", headers={
+        "Content-Disposition": f'attachment; filename="blindpay-audit-pack-{safe}-{month}.json"'})
+
+
 @router.get("/audit")
 def audit_log(limit: int = Query(default=50, ge=1, le=100), caller: Caller = Depends(current), db: Session = Depends(get_db)):
     from app.models import AuditEvent

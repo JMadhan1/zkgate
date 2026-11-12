@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import audit, notify
+from app import audit, notify, proofs
 from app.config import PLAN_SEATS
 from app.db import get_db
 from app.deps import Caller, current, not_found, owner_only, require_admin
@@ -122,6 +122,7 @@ def put_policy(body: PolicyIn, member_id: str = Path(pattern=UUID),
     except PolicyError as exc:
         raise HTTPException(422, str(exc)) from None
     # The audit records that the policy changed and its version, never its numbers.
+    proofs.commit_policy(db, caller.company.id, m.id)  # logged before any spend can use it
     audit.record(db, caller.company.id, f"member:{caller.member.id}", "policy.updated", f"member:{m.id}", {"version": version})
     db.commit()
     return {"member_id": m.id, "version": version}

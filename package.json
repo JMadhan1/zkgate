@@ -8,7 +8,8 @@
     "verifier-portal",
     "sdk",
     "circuits",
-    "blindpay/web"
+    "blindpay/web",
+    "blindpay/circuits"
   ],
   "scripts": {
     "dev": "concurrently -n frontend,verifier,backend -c cyan,magenta,yellow \"npm run dev:frontend\" \"npm run dev:verifier\" \"npm run dev:backend\"",

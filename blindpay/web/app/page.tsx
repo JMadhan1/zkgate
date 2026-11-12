@@ -268,7 +268,9 @@ function Export() {
       <div className="form-row">
         <label className="field2"><span>Month</span><input className="input" type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label>
         <a className="btn btn-ink" href={`/api/v1/exports/tally?month=${encodeURIComponent(month)}`} download><Download /> Download XML</a>
+        <a className="btn" href={`/api/v1/audit-pack?month=${encodeURIComponent(month)}`} download><Shield /> Audit Pack for your CA</a>
       </div>
+      <p className="hint" style={{ marginTop: 0 }}><Info /><span>The Audit Pack proves every approval stayed inside a limit you committed beforehand, without showing any limit. Your CA checks it at <a href="/verify">/verify</a>.</span></p>
     </div>
   );
 }

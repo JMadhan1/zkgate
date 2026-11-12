@@ -60,10 +60,15 @@ jobs:
         with: { persist-credentials: false }
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: "3.12", cache: pip, cache-dependency-path: blindpay/backend/requirements.txt }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: 22, cache: npm }
       - run: pip install -r requirements.txt pip-audit==2.10.1
       - name: Dependency audit
         run: pip-audit -r requirements.txt --strict
-      - name: Tests (flows + security rules)
+      - name: Build the proof-of-policy circuit (development setup)
+        working-directory: .
+        run: npm ci --no-audit --no-fund && npm --workspace blindpay/circuits run build
+      - name: Tests (flows, security rules, real Groth16 proofs)
         run: python -m pytest -q
 
   container:

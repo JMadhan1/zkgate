@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
     max_body_bytes: int = 1_000_000
 
+    # Proof-of-policy: built circuit artifacts and the Node binary that runs the prover.
+    circuit_dir: str = ""          # default: blindpay/circuits/build
+    node_binary: str = "node"
+
     # Policy
     limit_band_paise: int = 50_000          # limits are rounded down to ₹500 bands
     probe_alert_declines: int = 3           # declines per member per month before the owner is alerted

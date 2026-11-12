@@ -17,6 +17,7 @@ npm --workspace frontend run build
 (cd backend && python -m pytest -q)
 npm audit --omit=dev --audit-level=high
 (cd backend && pip-audit -r requirements.txt)
+npm --workspace blindpay/circuits run build && npm --workspace blindpay/web run build
 (cd blindpay/backend && python -m pytest -q && pip-audit -r requirements.txt)
 ```
 

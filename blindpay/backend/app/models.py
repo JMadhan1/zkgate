@@ -103,6 +103,37 @@ class SpendRequest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
+class PolicyCommitment(Base):
+    """
+    Public, hash-chained log of policy commitments (proof-of-policy).
+
+    One entry per (member, period, policy version): Poseidon(limit, salt,
+    member_tag, period). The salt is kept encrypted so the company can prove
+    against it later; the limit itself is never stored here. Entries are only
+    ever appended, so a limit can't be raised after the fact without a new,
+    later-timestamped entry that the CA sees.
+    """
+
+    __tablename__ = "policy_commitments"
+    __table_args__ = (
+        UniqueConstraint("company_id", "seq", name="uq_commit_seq"),
+        UniqueConstraint("member_id", "period", "version", name="uq_commit_member_period_version"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    company_id: Mapped[str] = mapped_column(ForeignKey("companies.id"), index=True)
+    member_id: Mapped[str] = mapped_column(ForeignKey("members.id"), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    ts: Mapped[str] = mapped_column(String(32))
+    member_tag: Mapped[str] = mapped_column(String(80))
+    period: Mapped[int] = mapped_column(Integer)          # YYYYMM, IST
+    version: Mapped[int] = mapped_column(Integer)         # policy version it commits to
+    commitment: Mapped[str] = mapped_column(String(80))
+    salt_ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    prev_hash: Mapped[str] = mapped_column(String(64))
+    hash: Mapped[str] = mapped_column(String(64))
+
+
 class ApprovalLink(Base):
     """One single-use link per approver per request, so every decision names who made it."""
 

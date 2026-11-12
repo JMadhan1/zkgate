@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import audit, notify, payouts
+from app import audit, notify, payouts, proofs
 from app.config import PLAN_SEATS, settings
 from app.crypto import new_token, token_hash
 from app.gst import itc_eligible, normalise_gstin
@@ -105,8 +105,10 @@ def submit(db: Session, member: Member, sub: Submission) -> SpendRequest:
         return req
 
     if decision.auto_approve:
+        proofs.precommit(db, req.company_id, req.member_id)
         req.status, req.decided_at, req.decided_by = "approved", utcnow(), "policy"
-        audit.record(db, req.company_id, "policy", "request.auto_approved", f"request:{req.id}")
+        proved = proofs.attach_proof(db, req)
+        audit.record(db, req.company_id, "policy", "request.auto_approved", f"request:{req.id}", {"proof": proved})
         payouts.start_payout(db, req)
         return req
 
@@ -146,14 +148,17 @@ def decide(db: Session, req: SpendRequest, approver: Member, approve: bool) -> S
         if not d.allowed:
             approve = False
             req.decline_rule = d.rule
+    if approve:
+        proofs.precommit(db, req.company_id, req.member_id)
     req.status = "approved" if approve else "declined"
     if not approve and not req.decline_rule:
         req.decline_rule = "owner_declined"
     req.decided_by, req.decided_at = approver.id, utcnow()
     for link in db.execute(select(ApprovalLink).where(ApprovalLink.request_id == req.id)).scalars():
         link.used = True  # every outstanding link for this request dies with the decision
+    proved = proofs.attach_proof(db, req) if approve else False
     audit.record(db, req.company_id, f"member:{approver.id}", "request.approved" if approve else "request.declined",
-                 f"request:{req.id}", {"rule": req.decline_rule} if not approve else {})
+                 f"request:{req.id}", {"rule": req.decline_rule} if not approve else {"proof": proved})
     member = db.get(Member, req.member_id)
     if member:
         verdict = "approved" if approve else f"declined: {DECLINE_MESSAGES.get(req.decline_rule, 'declined')}"

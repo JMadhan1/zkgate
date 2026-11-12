@@ -7,7 +7,29 @@ Plan and research: the "BlindPay — Deep Research & Build Map" doc.
 | Part | What it is |
 | --- | --- |
 | `backend/` | FastAPI API: WhatsApp webhook and conversation, policy engine (limits encrypted, declines never show numbers), approvals, RazorpayX payouts, Razorpay billing, Tally export, hash-chained audit |
-| `web/` | Owner PWA (Next.js): sign-in by WhatsApp link, one-tap approve page, dashboard |
+| `web/` | Owner PWA (Next.js): sign-in by WhatsApp link, one-tap approve page, dashboard, and the public CA verifier at `/verify` |
+| `circuits/` | Proof-of-policy: `policyCheck.circom` (Groth16, 940 constraints), build script, Node prover |
+
+## Proof-of-policy (Phase 2)
+
+Every approval of a member who has a policy carries a Groth16 proof that
+`spent_before + amount <= limit`, where the limit is hidden behind a Poseidon
+commitment written to a hash-chained policy log *before* any spend can use it
+(on save, for this month and next). The owner exports a monthly **Audit Pack**;
+the company's CA opens `/verify`, drops the file in, and the browser checks
+the log chain, recomputes every request hash and running total, and verifies
+each proof, without ever seeing a limit (the pack contains none).
+
+v1 proves on the server (it holds the encrypted limit); the verifier is the CA,
+which is what makes the proof meaningful. v2 moves proving to the owner's phone.
+
+```bash
+npm ci && npm --workspace blindpay/circuits run build   # wasm, zkey, verification key (git-ignored)
+```
+
+The build's trusted setup is single-party: fine for development and CI, not
+for production. Run a multi-party ceremony (docs/TRUSTED_SETUP_CEREMONY_PLAN.md)
+and publish the verification key and transcript where CAs can fetch them.
 
 ## Run locally
 

@@ -46,3 +46,4 @@ Thumbs.db
 blindpay/backend/blindpay-dev.db
 blindpay/backend/.blindpay-dev.key
 blindpay/backend/*.db
+blindpay/circuits/build/

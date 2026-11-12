@@ -5,6 +5,13 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  // snarkjs (used by the CA verifier) references Node-only modules; stub them in the browser.
+  turbopack: {
+    resolveAlias: {
+      fs: { browser: "./lib/empty.js" },
+      readline: { browser: "./lib/empty.js" },
+    },
+  },
   // The browser only ever talks to this origin: /api/* is proxied to the API
   // service, so session cookies stay SameSite=Strict and no CORS is needed.
   async rewrites() {
