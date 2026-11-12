@@ -187,3 +187,22 @@ def test_auth_lockout(client):
     for _ in range(5):
         client.post("/v1/auth/session", json={"token": "bp_" + "x" * 40})
     assert client.post("/v1/auth/session", json={"token": "bp_" + "y" * 40}).status_code == 429
+
+
+def test_dev_outbox_absent_in_production(client):
+    import importlib
+
+    from fastapi.testclient import TestClient
+
+    import app.config as config
+    import app.main as main
+
+    assert client.get("/v1/dev/outbox", params={"to": "919800000001"}).status_code == 200  # dev: present
+    original = config.settings.environment
+    try:
+        config.settings.environment = "production"
+        prod = TestClient(importlib.reload(main).app, base_url="https://testserver")  # no lifespan: no secrets needed
+        assert prod.get("/v1/dev/outbox", params={"to": "919800000001"}).status_code == 404
+    finally:
+        config.settings.environment = original
+        importlib.reload(main)

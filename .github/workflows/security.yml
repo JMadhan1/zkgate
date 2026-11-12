@@ -30,6 +30,8 @@ jobs:
         run: npm --workspace frontend run build
       - name: Type-check and build the verifier portal
         run: npm --workspace verifier-portal run build
+      - name: Type-check and build the BlindPay web app
+        run: npm --workspace blindpay/web run build
       - name: SDK tests
         working-directory: sdk
         run: node --test test/*.mjs

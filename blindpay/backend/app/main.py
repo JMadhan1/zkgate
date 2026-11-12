@@ -44,6 +44,11 @@ app.add_middleware(SecurityMiddleware)
 for r in (auth.router, company.router, requests.router, webhooks.router):
     app.include_router(r, prefix="/v1")
 
+if not settings.is_production and not settings.whatsapp_access_token:
+    from app.routers import dev
+
+    app.include_router(dev.router, prefix="/v1")
+
 
 @app.get("/health")
 def health():
