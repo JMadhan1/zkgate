@@ -2,7 +2,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"   # localhost only — never expose Redis publicly
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -17,9 +17,10 @@ services:
     environment:
       POSTGRES_DB: zkgate
       POSTGRES_USER: zkgate
-      POSTGRES_PASSWORD: zkgate_dev_password
+      # From .env (git-ignored) — see .env.example. Never hardcode it here.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # localhost only
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/database/migrations:/docker-entrypoint-initdb.d:ro
@@ -32,19 +33,27 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - REDIS_URL=redis://redis:6379
-      - DATABASE_URL=postgresql+asyncpg://zkgate:zkgate_dev_password@postgres:5432/zkgate
+      - DATABASE_URL=postgresql+asyncpg://zkgate:${POSTGRES_PASSWORD}@postgres:5432/zkgate
       - ENVIRONMENT=development
       - CIRCUIT_KEYS_DIR=/app/circuits/keys
+    # Container hardening: read-only root fs, no capabilities, no escalation.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/app
+      - ./backend:/app:ro
       - ./circuits/keys:/app/circuits/keys:ro
 
 volumes:

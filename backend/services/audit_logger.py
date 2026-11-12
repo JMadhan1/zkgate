@@ -99,7 +99,20 @@ class AuditLogger:
         return True, None
 
     def tail(self, n: int = 50) -> list[dict]:
-        return [asdict(ev) for ev in self._chain[-n:]]
+        return [asdict(ev) for ev in self._chain[-n:]] if n > 0 else []
+
+    def events_for(self, verifier_id: str, n: int = 50) -> list[dict]:
+        """The most recent n events recorded for one verifier (tenant-scoped)."""
+        if n <= 0:
+            return []
+        out: list[dict] = []
+        for ev in reversed(self._chain):
+            if ev.verifier_id == verifier_id:
+                out.append(asdict(ev))
+                if len(out) >= n:
+                    break
+        out.reverse()
+        return out
 
     def __len__(self) -> int:
         return len(self._chain)

@@ -100,6 +100,8 @@ export async function prove(opts: {
   verifierId: string;
   requiredStateCode?: number;
   ageThreshold?: number;
+  /** Optional progress hook so the UI can show which stage is running. */
+  onStage?: (stage: "witness" | "prove") => void;
 }): Promise<ProofResult> {
   const { xml, parsed, claimType, circuit, verifierId } = opts;
 
@@ -118,6 +120,7 @@ export async function prove(opts: {
     proofLevel: 2,
   };
 
+  opts.onStage?.("witness");
   const issuerCredential = await demoIssuerCredential(claimType, parsed.fields, secret);
 
   const witnessInput = buildWitness({
@@ -128,6 +131,7 @@ export async function prove(opts: {
     issuerCredential,
   });
 
+  opts.onStage?.("prove");
   const result = await generateProof({
     claimType,
     witnessInput,

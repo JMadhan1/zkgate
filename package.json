@@ -25,5 +25,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "ws": "^8.22.2",
+    "underscore": "^1.13.8",
+    "brace-expansion@2": "^2.1.7"
   }
 }

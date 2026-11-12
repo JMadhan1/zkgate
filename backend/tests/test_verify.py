@@ -8,7 +8,7 @@ from tests.conftest import bundle
 def test_health_ready(client):
     r = client.get("/health").json()
     assert r["status"] == "ready"
-    assert "age_proof" in r["circuits_loaded"]
+    assert r["circuits_loaded"] is True
 
 
 def test_valid_age_proof(client, proofs):
@@ -104,7 +104,7 @@ def test_demo_flag_surfaces_as_trust_level(client, proofs):
 def test_audit_chain_intact_after_traffic(client, proofs):
     client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18"))
     client.post("/v1/verify", json=bundle(proofs["citizen"], "india_citizen"))
-    audit = client.get("/v1/audit").json()
+    audit = client.get("/v1/audit", headers={"X-API-Key": "demo-bank-key"}).json()
     assert audit["chain_intact"] is True
     assert audit["count"] >= 2
 
@@ -113,6 +113,6 @@ def test_stats_counts_replays(client, proofs):
     b = bundle(proofs["age18"], "age_above_18")
     client.post("/v1/verify", json=b)
     client.post("/v1/verify", json=b)  # replay
-    stats = client.get("/v1/stats").json()
+    stats = client.get("/v1/stats").json()  # anonymous allowed outside production
     assert stats["verified"] >= 1
     assert stats["replay"] >= 1

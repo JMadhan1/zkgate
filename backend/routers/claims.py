@@ -9,7 +9,7 @@ Pradesh" == 28). Both are served here so no one hardcodes a table.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from services import encoding
 from services.proof_verifier import get_layout
@@ -52,20 +52,23 @@ async def list_claims():
 
 
 @router.get("/encode/state")
-async def encode_state(name: str):
+async def encode_state(name: str = Query(..., min_length=1, max_length=64, pattern=r"^[A-Za-z .&()'-]+$")):
     """Map a state name (as spelled in an Aadhaar XML) to its census code."""
     code = encoding.encode_state(name)
     if code == 0:
-        raise HTTPException(404, f"unknown state: {name!r}")
+        raise HTTPException(404, "unknown state")
     return {"name": name, "state_code": code, "canonical": encoding.state_name(code)}
 
 
 @router.get("/encode/district")
-async def encode_district(state: str, district: str):
+async def encode_district(
+    state: str = Query(..., min_length=1, max_length=64, pattern=r"^[A-Za-z .&()'-]+$"),
+    district: str = Query(..., min_length=1, max_length=64, pattern=r"^[A-Za-z0-9 .&()'-]+$"),
+):
     """Map (state, district) to the namespaced district code the circuit compares."""
     state_code = encoding.encode_state(state)
     if state_code == 0:
-        raise HTTPException(404, f"unknown state: {state!r}")
+        raise HTTPException(404, "unknown state")
     return {
         "state": encoding.state_name(state_code),
         "state_code": state_code,

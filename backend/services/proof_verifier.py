@@ -141,7 +141,36 @@ def _date_is_fresh(sig: dict) -> bool:
     return delta <= MAX_DATE_SKEW_DAYS
 
 
+class _BadExpected(ValueError):
+    pass
+
+
+def _expected_int(expected: dict, key: str, default: int) -> int:
+    """Read a non-negative integer from the verifier's request, or reject it."""
+    raw = expected.get(key, default)
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        raise _BadExpected(f"expected.{key} must be an integer")
+    try:
+        val = int(raw)
+    except (TypeError, ValueError):
+        raise _BadExpected(f"expected.{key} must be an integer") from None
+    if not 0 <= val <= 10**6:
+        raise _BadExpected(f"expected.{key} is out of range")
+    return val
+
+
 def _build_claims(
+    claim_type: str, snake: str, sig: dict, expected: dict
+) -> tuple[bool, dict, str | None]:
+    try:
+        return _build_claims_inner(claim_type, snake, sig, expected)
+    except _BadExpected as exc:
+        return False, {}, str(exc)
+
+
+def _build_claims_inner(
     claim_type: str, snake: str, sig: dict, expected: dict
 ) -> tuple[bool, dict, str | None]:
     """
@@ -158,10 +187,13 @@ def _build_claims(
     claims["expires_at"] = int(sig["expiry_timestamp"])
 
     if claim_type in _AGE_CLAIM_THRESHOLD:
-        want = _AGE_CLAIM_THRESHOLD[claim_type]
+        # The threshold to enforce is the STRICTER of what the claim name implies
+        # and what the verifier actually asked for. The claim type comes from the
+        # prover, so on its own it can't be trusted: an "age_above_18" proof must
+        # not satisfy a verifier whose request said age_threshold=21.
+        want = max(_AGE_CLAIM_THRESHOLD[claim_type], _expected_int(expected, "age_threshold", 0))
         proven = int(sig["age_threshold"])
-        # The proof must have been built for AT LEAST the threshold this claim
-        # needs. A proof of ">= 18" cannot satisfy a request for ">= 21".
+        # The proof must have been built for AT LEAST that threshold.
         if proven < want:
             return False, {}, f"proof establishes age>={proven}, claim needs age>={want}"
         if not _date_is_fresh(sig):
@@ -170,7 +202,7 @@ def _build_claims(
         claims["age_threshold_proven"] = proven
 
     elif claim_type in ("state_resident", "district_resident"):
-        req_state = int(expected.get("required_state_code", 0))
+        req_state = _expected_int(expected, "required_state_code", 0)
         if int(sig["required_state_code"]) != req_state:
             return False, {}, "proof was not bound to the requested state"
         proved_state = int(sig["proved_state_code"])
@@ -178,7 +210,7 @@ def _build_claims(
         claims["state_code"] = proved_state
         claims["state_name"] = encoding.state_name(proved_state)
         if claim_type == "district_resident":
-            req_dist = int(expected.get("required_district_code", 0))
+            req_dist = _expected_int(expected, "required_district_code", 0)
             if req_dist == 0 or int(sig["required_district_code"]) != req_dist:
                 return False, {}, "district claim requires a district to be bound"
             claims["district_resident"] = True
@@ -187,10 +219,10 @@ def _build_claims(
         claims["india_citizen"] = True
 
     elif claim_type == "compound_kyc":
-        want_age = int(expected.get("age_threshold", 18))
+        want_age = max(18, _expected_int(expected, "age_threshold", 18))
         if int(sig["age_threshold"]) < want_age:
             return False, {}, "compound proof age threshold too low"
-        req_state = int(expected.get("required_state_code", 0))
+        req_state = _expected_int(expected, "required_state_code", 0)
         if int(sig["required_state_code"]) != req_state:
             return False, {}, "compound proof not bound to the requested state"
         if not _date_is_fresh(sig):

@@ -26,6 +26,7 @@ is not for production; NullifierRegistry.backend tells you which is active.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import time
@@ -78,6 +79,11 @@ class _MemoryStore:
         return True
 
 
+def verifier_tag(verifier_id: str) -> int:
+    """Stable, non-reversible tag for a verifier id (fits a Postgres BIGINT)."""
+    return int(hashlib.sha256(f"zkgate-verifier:{verifier_id}".encode()).hexdigest()[:15], 16)
+
+
 class NullifierRegistry:
     KEY = "zkgate:nul:"
     STAT = "zkgate:stat:"
@@ -114,8 +120,9 @@ class NullifierRegistry:
             {
                 "claim_type": claim_type,
                 # Hash the verifier id even here — the registry should hold no
-                # plaintext identifiers of anyone, verifiers included.
-                "verifier": hash(verifier_id) % 10**9,
+                # plaintext identifiers of anyone, verifiers included. Stable
+                # across processes (unlike hash()), so ownership can be checked.
+                "verifier": verifier_tag(verifier_id),
                 "registered_at": int(time.time()),
                 "expires_at": expires_at,
             }

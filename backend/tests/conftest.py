@@ -49,6 +49,11 @@ def client():
     dependencies.audit = AuditLogger()
     dependencies.verifiers = VerifierRegistry()
 
+    from security import limiter
+
+    limiter.reset()
+    dependencies.auth_failures.reset()
+
     from main import app
 
     return TestClient(app)
