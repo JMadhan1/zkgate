@@ -7,7 +7,7 @@ py_ecc==8.0.0
 httpx==0.28.1
 
 # Postgres-backed audit (optional; the API runs without them)
-asyncpg==0.30.0
+asyncpg==0.32.0
 sqlalchemy==2.0.36
 
 # Tests
