@@ -322,3 +322,32 @@ def test_rate_limit_trigger_is_logged(client, caplog):
     for _ in range(settings.rate_limit_requests + 1):
         client.get("/v1/claims")
     assert '"action":"rate_limit"' in caplog.text
+
+
+# ── semantic gate: the verifier's request wins over the prover's label ──────
+
+def test_age_proof_cannot_satisfy_stricter_request_by_relabelling(client, proofs):
+    """An 18+ proof labelled age_above_18 must not pass a request for 21+."""
+    r = client.post(
+        "/v1/verify",
+        json=bundle(proofs["age18"], "age_above_18", expected={"age_threshold": 21}),
+    ).json()
+    assert r["valid"] is False
+    assert "age>=18" in r["error"] and "age>=21" in r["error"]
+
+
+def test_same_proof_still_passes_matching_request(client, proofs):
+    r = client.post(
+        "/v1/verify",
+        json=bundle(proofs["age18"], "age_above_18", expected={"age_threshold": 18}),
+    ).json()
+    assert r["valid"] is True
+
+
+def test_malformed_expected_is_rejected_not_500(client, proofs):
+    for bad in ({"age_threshold": "abc"}, {"age_threshold": True}, {"age_threshold": -1}):
+        r = client.post("/v1/verify", json=bundle(proofs["age18"], "age_above_18", expected=bad))
+        assert r.status_code == 200
+        assert r.json()["valid"] is False
+    r = client.post("/v1/verify", json=bundle(proofs["locAP"], "state_resident", expected={"required_state_code": "x"}))
+    assert r.status_code == 200 and r.json()["valid"] is False
